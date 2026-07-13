@@ -1,25 +1,17 @@
-# =LOVE 生写真管理 Ver0.8
+# =LOVE 生写真管理 Ver0.8.1
 
-## ファイル構成
+## 更新内容
+- TOPページを=LOVEカラーのピンク背景へ変更
+- 各メンバーのカラーを、見分けやすい濃さへ調整
+- 機能や保存データの仕様はVer0.8から変更なし
+
+## GitHubへの反映
+Ver0.8から更新する場合は、次の3ファイルだけ差し替えれば反映できます。
 
 ```text
-equal-love-photo-manager/
-├── index.html
-├── css/
-│   └── style.css
-├── js/
-│   └── app.js
-├── data/
-│   ├── events.json
-│   ├── members.json
-│   ├── positions.json
-│   └── config.json
-├── README.md
-└── CHANGELOG.md
+css/style.css
+data/members.json
+data/config.json
 ```
 
-## 更新方法
-
-新しい生写真データを追加するときは、基本的に `data/events.json` だけ更新します。
-
-GitHub Pagesでは、この構成をリポジトリのルートにそのまま置いてください。
+更新履歴も反映する場合は、`CHANGELOG.md`も差し替えてください。
