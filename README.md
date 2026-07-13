@@ -1,18 +1,20 @@
-# =LOVE 生写真管理 Ver0.85
+# =LOVE 生写真管理 Ver0.9
 
 ## 新機能
-- 所持枚数・直筆・欲しい情報をJSONファイルにバックアップ
-- 保存したJSONファイルからデータを復元
-- 復元前の件数表示と上書き確認
+TOPページ下部に卒業メンバーを追加し、各メンバーの卒業時点までの生写真だけを表示します。
 
-## Ver0.8.1からの更新対象
+- 齊藤なぎさ 🍓：2023年1月卒業／sort 149まで
+- 佐竹のん乃 🍅：2021年3月卒業／sort 93まで
+
+## Ver0.85からの更新対象
 ```text
 index.html
 css/style.css
 js/app.js
+data/members.json
 data/config.json
 CHANGELOG.md
 README.md
 ```
 
-`events.json`、`members.json`、`positions.json`は更新不要です。
+`events.json`と`positions.json`は更新不要です。
