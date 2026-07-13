@@ -189,7 +189,6 @@ function renderTrade(){
   const typeCount=groups.reduce((sum,g)=>sum+g.positions.length,0);
   $("tradePage").innerHTML=`<div class="page-head"><h2>🔄 ダブり・提供可能一覧</h2><p>${groups.length}イベント・${typeCount}種類を表示中</p></div><div class="page-filter"><select id="pageMemberFilter">${pageMemberOptions()}</select></div><div class="list-page">${groups.length?groups.map(renderGroupedTradeItem).join(""):'<div class="empty">提供可能なダブりはありません。</div>'}</div>`;
   bindPageMemberFilter();
-}イベント・${typeCount}種類を表示中</p></div><div class="list-page">${groups.length?groups.map(renderGroupedTradeItem).join(""):'<div class="empty">提供可能なダブりはありません。</div>'}</div>`;
 }
 MEMBERS.forEach(m=>{const b=document.createElement("button");b.className="member-card";b.style.background=`linear-gradient(135deg,${m.soft},#fff)`;b.innerHTML=`<span class="emoji">${m.emoji}</span><span class="name">${m.name}</span><span class="small">所持：${memberTotal(m.id)}枚</span>`;b.onclick=()=>openMember(m.id);$("memberGrid").appendChild(b)});
 const all=document.createElement("button");all.className="member-card all";all.innerHTML=`<span class="emoji">🌈</span><span><span class="name">全メンバー</span><span class="small">イベントごとに10人分をまとめて管理</span></span>`;all.onclick=openAll;$("memberGrid").appendChild(all);
