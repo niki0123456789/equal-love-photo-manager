@@ -59,8 +59,8 @@ function initializeApp() {
   function openMember(id){state.mode="member";state.memberId=id;state.pageMemberId=id;theme(MEMBERS.find(m=>m.id===id));openManager()}
   function openAll(){state.mode="all";state.memberId=null;state.pageMemberId="";theme(null);openManager()}
   function openManager(){$("homeScreen").classList.add("hidden");$("managerScreen").classList.remove("hidden");$("ownershipFilterRow").classList.toggle("hidden",state.mode==="all");showPage("collection");window.scrollTo(0,0)}
-  function updateHeader(){const m=MEMBERS.find(x=>x.id===state.memberId);$("memberTitle").textContent=state.mode==="all"?"🌈 全メンバー":`${m.emoji} ${m.name}`;$("memberSub").textContent=state.page==="collection"?"生写真コレクション":state.page==="stats"?"統計・年代別コンプ率":state.page==="wishlist"?"欲しい生写真一覧":"ダブり・提供可能一覧"}
-  function showPage(page){if($("homeScreen").classList.contains("hidden")===false){state.mode="all";state.memberId=null;theme(null);$("homeScreen").classList.add("hidden");$("managerScreen").classList.remove("hidden")}state.page=page;["collection","stats","wishlist","trade"].forEach(p=>$(p+"Page").classList.toggle("hidden",p!==page));$("managerTools").classList.toggle("hidden",page!=="collection");document.querySelectorAll(".bottom-nav button").forEach(b=>b.classList.toggle("active",b.dataset.page===page));updateHeader();if(page==="collection")renderCollection();if(page==="stats")renderStats();if(page==="wishlist")renderWishlist();if(page==="trade")renderTrade();window.scrollTo(0,0)}
+  function updateHeader(){const m=MEMBERS.find(x=>x.id===state.memberId);$("memberTitle").textContent=state.mode==="all"?"🌈 全メンバー":`${m.emoji} ${m.name}`;$("memberSub").textContent=state.page==="collection"?"生写真コレクション":state.page==="stats"?"統計・年代別コンプ率":state.page==="wishlist"?"欲しい生写真一覧":state.page==="trade"?"ダブり・提供可能一覧":"バックアップ・復元"}
+  function showPage(page){if($("homeScreen").classList.contains("hidden")===false){state.mode="all";state.memberId=null;theme(null);$("homeScreen").classList.add("hidden");$("managerScreen").classList.remove("hidden")}state.page=page;["collection","stats","wishlist","trade","backup"].forEach(p=>$(p+"Page").classList.toggle("hidden",p!==page));$("managerTools").classList.toggle("hidden",page!=="collection");document.querySelectorAll(".bottom-nav button").forEach(b=>b.classList.toggle("active",b.dataset.page===page));updateHeader();if(page==="collection")renderCollection();if(page==="stats")renderStats();if(page==="wishlist")renderWishlist();if(page==="trade")renderTrade();if(page==="backup")renderBackup();window.scrollTo(0,0)}
   function statsFor(ms,evs=EVENTS){let total=0,types=0,signed=0,wanted=0,possible=evs.length*ms.length*POSITIONS.length;ms.forEach(m=>evs.forEach(e=>POSITIONS.forEach(p=>{const n=getCount(e.id,m.id,p.id);total+=n;if(n>0)types++;if(isSigned(e.id,m.id,p.id))signed++;if(isWanted(e.id,m.id,p.id))wanted++})));return{total,types,signed,wanted,possible,rate:possible?Math.round(types/possible*100):0}}
   function updateSummary(list){const s=statsFor(scopeMembers());$("ownedTotal").textContent=s.total;$("ownedTypes").textContent=s.types;$("signedTotal").textContent=s.signed}
   function complete(e,m){return POSITIONS.every(p=>getCount(e.id,m.id,p.id)>0)}
@@ -126,6 +126,99 @@ function initializeApp() {
     $("tradePage").innerHTML=`<div class="page-head"><h2>🔄 ダブり・提供可能一覧</h2><p>${groups.length}イベント・${typeCount}種類を表示中</p></div><div class="page-filter"><select id="pageMemberFilter">${pageMemberOptions()}</select></div><div class="list-page">${groups.length?groups.map(renderGroupedTradeItem).join(""):'<div class="empty">提供可能なダブりはありません。</div>'}</div>`;
     bindPageMemberFilter();
   }
+
+  function backupStats(){
+    return {
+      counts:Object.keys(state.counts).length,
+      signs:Object.keys(state.signs).length,
+      wants:Object.keys(state.wants).length
+    };
+  }
+  function backupFileName(){
+    const d=new Date(),pad=n=>String(n).padStart(2,"0");
+    return `equal-love-photo-backup-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}.json`;
+  }
+  function exportBackup(){
+    const payload={
+      app:"equal-love-photo-manager",
+      backupVersion:1,
+      exportedAt:new Date().toISOString(),
+      data:{
+        counts:state.counts,
+        signs:state.signs,
+        wants:state.wants
+      }
+    };
+    const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    a.href=url;
+    a.download=backupFileName();
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+    const msg=document.getElementById("backupMessage");
+    if(msg){msg.textContent="バックアップファイルを保存しました。";msg.className="backup-message success"}
+  }
+  function validObject(value){return value&&typeof value==="object"&&!Array.isArray(value)}
+  function importBackupFile(file){
+    if(!file)return;
+    const reader=new FileReader();
+    reader.onload=()=>{
+      try{
+        const payload=JSON.parse(reader.result);
+        if(payload.app!=="equal-love-photo-manager"||!validObject(payload.data)||!validObject(payload.data.counts)||!validObject(payload.data.signs)||!validObject(payload.data.wants)){
+          throw new Error("形式が違います");
+        }
+        const counts=payload.data.counts,signs=payload.data.signs,wants=payload.data.wants;
+        const summary=`所持データ ${Object.keys(counts).length}件\n直筆データ ${Object.keys(signs).length}件\n欲しいデータ ${Object.keys(wants).length}件`;
+        if(!confirm(`このバックアップで現在のデータを上書きします。\n\n${summary}\n\n復元しますか？`))return;
+        localStorage.setItem(COUNT_KEY,JSON.stringify(counts));
+        localStorage.setItem(SIGN_KEY,JSON.stringify(signs));
+        localStorage.setItem(WANT_KEY,JSON.stringify(wants));
+        alert("復元が完了しました。画面を再読み込みします。");
+        location.reload();
+      }catch(error){
+        console.error(error);
+        const msg=document.getElementById("backupMessage");
+        if(msg){msg.textContent="バックアップファイルを読み込めませんでした。正しいJSONファイルを選択してください。";msg.className="backup-message error"}
+      }
+    };
+    reader.onerror=()=>{
+      const msg=document.getElementById("backupMessage");
+      if(msg){msg.textContent="ファイルの読み込みに失敗しました。";msg.className="backup-message error"}
+    };
+    reader.readAsText(file);
+  }
+  function renderBackup(){
+    const s=backupStats();
+    $("backupPage").innerHTML=`
+      <div class="page-head"><h2>💾 バックアップ・復元</h2><p>端末変更やブラウザデータ消去に備えて保存できます</p></div>
+      <div class="backup-summary">
+        <div><b>${s.counts}</b><span>所持データ</span></div>
+        <div><b>${s.signs}</b><span>直筆データ</span></div>
+        <div><b>${s.wants}</b><span>欲しいデータ</span></div>
+      </div>
+      <div class="panel backup-panel">
+        <div class="backup-icon">📤</div>
+        <h3>バックアップを保存</h3>
+        <p>現在の所持枚数・直筆・欲しい情報を、1つのJSONファイルに保存します。</p>
+        <button id="exportBackupButton" class="primary-action">バックアップファイルを保存</button>
+      </div>
+      <div class="panel backup-panel">
+        <div class="backup-icon">📥</div>
+        <h3>バックアップから復元</h3>
+        <p>保存済みのJSONファイルを選択すると、現在のデータを上書きして復元します。</p>
+        <input id="importBackupInput" class="file-input" type="file" accept=".json,application/json">
+        <label for="importBackupInput" class="secondary-action">バックアップファイルを選択</label>
+        <div class="backup-warning">⚠️ 復元すると、現在このブラウザに保存されているデータは上書きされます。</div>
+      </div>
+      <div id="backupMessage" class="backup-message"></div>`;
+    document.getElementById("exportBackupButton").onclick=exportBackup;
+    document.getElementById("importBackupInput").onchange=e=>importBackupFile(e.target.files?.[0]);
+  }
+
   MEMBERS.forEach(m=>{const b=document.createElement("button");b.className="member-card";b.style.background=`linear-gradient(135deg,${m.soft},#fff)`;b.innerHTML=`<span class="emoji">${m.emoji}</span><span class="name">${m.name}</span><span class="small">所持：${memberTotal(m.id)}枚</span>`;b.onclick=()=>openMember(m.id);$("memberGrid").appendChild(b)});
   const all=document.createElement("button");all.className="member-card all";all.innerHTML=`<span class="emoji">🌈</span><span><span class="name">全メンバー</span><span class="small">イベントごとに10人分をまとめて管理</span></span>`;all.onclick=openAll;$("memberGrid").appendChild(all);
   $("backButton").onclick=()=>{$("managerScreen").classList.add("hidden");$("homeScreen").classList.remove("hidden");window.scrollTo(0,0)};
