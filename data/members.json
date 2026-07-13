@@ -3,70 +3,70 @@
     "id": "emiri",
     "name": "大谷映美里",
     "emoji": "🐈",
-    "accent": "#A985D6",
-    "soft": "#F3ECFB"
+    "accent": "#9662C7",
+    "soft": "#E7D6F6"
   },
   {
     "id": "hana",
     "name": "大場花菜",
     "emoji": "💮",
-    "accent": "#F39A45",
-    "soft": "#FFF1E4"
+    "accent": "#F07D20",
+    "soft": "#FFD9B8"
   },
   {
     "id": "risa",
     "name": "音嶋莉沙",
     "emoji": "💄",
-    "accent": "#67BFE0",
-    "soft": "#EBF8FD"
+    "accent": "#3EAED6",
+    "soft": "#CDEFFA"
   },
   {
     "id": "kiara",
     "name": "齋藤樹愛羅",
     "emoji": "👼",
-    "accent": "#F28BB6",
-    "soft": "#FDECF4"
+    "accent": "#ED65A0",
+    "soft": "#FAD1E2"
   },
   {
     "id": "maika",
     "name": "佐々木舞香",
     "emoji": "🦑",
-    "accent": "#9B9B9B",
-    "soft": "#F7F7F7"
+    "accent": "#777777",
+    "soft": "#E9E9E9"
   },
   {
     "id": "hitomi",
     "name": "髙松瞳",
     "emoji": "🍨",
-    "accent": "#EC6868",
-    "soft": "#FDEBEC"
+    "accent": "#E84747",
+    "soft": "#F8CACA"
   },
   {
     "id": "shoko",
     "name": "瀧脇笙古",
     "emoji": "👌🏻",
-    "accent": "#D9B22C",
-    "soft": "#FFF8DA"
+    "accent": "#C99B00",
+    "soft": "#F8E7A1"
   },
   {
     "id": "iori",
     "name": "野口衣織",
     "emoji": "🌱",
-    "accent": "#8E68C2",
-    "soft": "#F2ECFA"
+    "accent": "#7547AE",
+    "soft": "#DDCBF1"
   },
   {
     "id": "sana",
     "name": "諸橋沙夏",
     "emoji": "🥦",
-    "accent": "#66AE72",
-    "soft": "#EDF8EF"
+    "accent": "#3F9955",
+    "soft": "#CDE8D2"
   },
   {
     "id": "anna",
     "name": "山本杏奈",
     "emoji": "🐼",
-    "accent": "#5B82D2",
-    "soft": "#EDF2FC"
+    "accent": "#356CC5",
+    "soft": "#CCDDF7"
   }
 ]
