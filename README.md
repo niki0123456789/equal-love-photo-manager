@@ -1,9 +1,25 @@
-# =LOVE 生写真管理 v0.7.1
+# =LOVE 生写真管理 Ver0.8
 
-## 修正内容
-- v0.7で表示されなくなっていた作品名・衣装名を復元
-- 最新Excelのカテゴリ「通常・イベント・コラボ」は維持
-- 公式URL・並び順・既存機能も維持
-- 所持枚数・直筆・欲しいデータは引き継ぎ
+## ファイル構成
 
-復元できたイベント数: 241件
+```text
+equal-love-photo-manager/
+├── index.html
+├── css/
+│   └── style.css
+├── js/
+│   └── app.js
+├── data/
+│   ├── events.json
+│   ├── members.json
+│   ├── positions.json
+│   └── config.json
+├── README.md
+└── CHANGELOG.md
+```
+
+## 更新方法
+
+新しい生写真データを追加するときは、基本的に `data/events.json` だけ更新します。
+
+GitHub Pagesでは、この構成をリポジトリのルートにそのまま置いてください。
