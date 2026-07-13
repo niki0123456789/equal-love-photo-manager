@@ -1,17 +1,18 @@
-# =LOVE 生写真管理 Ver0.8.1
+# =LOVE 生写真管理 Ver0.85
 
-## 更新内容
-- TOPページを=LOVEカラーのピンク背景へ変更
-- 各メンバーのカラーを、見分けやすい濃さへ調整
-- 機能や保存データの仕様はVer0.8から変更なし
+## 新機能
+- 所持枚数・直筆・欲しい情報をJSONファイルにバックアップ
+- 保存したJSONファイルからデータを復元
+- 復元前の件数表示と上書き確認
 
-## GitHubへの反映
-Ver0.8から更新する場合は、次の3ファイルだけ差し替えれば反映できます。
-
+## Ver0.8.1からの更新対象
 ```text
+index.html
 css/style.css
-data/members.json
+js/app.js
 data/config.json
+CHANGELOG.md
+README.md
 ```
 
-更新履歴も反映する場合は、`CHANGELOG.md`も差し替えてください。
+`events.json`、`members.json`、`positions.json`は更新不要です。
