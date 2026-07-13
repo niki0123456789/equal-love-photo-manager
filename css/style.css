@@ -68,3 +68,15 @@ button,input,select{font:inherit}.hidden{display:none!important}.wrap{width:min(
 .backup-message{min-height:24px;margin:4px 0 90px;padding:0 4px;text-align:center;font-size:13px;font-weight:800}
 .backup-message.success{color:#34864a}
 .backup-message.error{color:#c94747}
+
+
+/* Ver0.9 卒業メンバー */
+.graduated-section{margin-top:28px;padding-top:20px;border-top:1px solid rgba(255,255,255,.65)}
+.section-title{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;color:#fff;text-shadow:0 2px 8px rgba(110,45,74,.18)}
+.section-title span{font-size:18px;font-weight:900}
+.section-title small{font-size:10px;font-weight:700;color:rgba(255,255,255,.9)}
+.graduated-grid{margin-top:12px}
+.member-card.graduated{border-color:rgba(255,255,255,.8);filter:saturate(.65)}
+.member-card.graduated .name{color:#555}
+.member-card.graduated .small{color:#777;line-height:1.45}
+.mini-graduated{display:inline-block;margin-left:6px;padding:2px 6px;border-radius:999px;background:#ececec;color:#777;font-size:9px;font-weight:900;vertical-align:middle}
