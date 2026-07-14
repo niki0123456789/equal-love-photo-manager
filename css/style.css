@@ -135,3 +135,76 @@ button,input,select{font:inherit}.hidden{display:none!important}.wrap{width:min(
   .home{padding-top:calc(28px + env(safe-area-inset-top))}
   .topbar{padding-top:env(safe-area-inset-top)}
 }
+
+
+/* Ver0.97 コンパクト表示・未所持順・タイトル改行対策 */
+.positions{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:7px;
+  padding:8px 12px 13px;
+}
+.pos-row{
+  display:flex;
+  min-width:0;
+  min-height:0;
+  flex-direction:column;
+  align-items:stretch;
+  gap:7px;
+  padding:9px 6px;
+  border:1px solid var(--line);
+  border-radius:14px;
+  background:#fff;
+}
+.pos-row:last-child{border-bottom:1px solid var(--line)}
+.pos-row>span{
+  text-align:center;
+  font-size:12px;
+  font-weight:900;
+  color:var(--accent);
+}
+.pos-actions{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:5px;
+}
+.pos-actions .counter{
+  grid-column:1/-1;
+  display:grid;
+  grid-template-columns:28px 1fr 28px;
+  gap:3px;
+}
+.counter button{
+  width:28px;
+  height:28px;
+  font-size:16px;
+}
+.counter .count{
+  width:auto;
+  min-width:0;
+  align-self:center;
+}
+.icon-btn{
+  min-width:0;
+  width:100%;
+  height:28px;
+  padding:0;
+}
+.event-topline>div:first-child{
+  flex:1;
+  min-width:0;
+}
+.work{
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.badges{
+  flex:none;
+  max-width:45%;
+}
+@media(max-width:370px){
+  .positions{gap:5px;padding-left:8px;padding-right:8px}
+  .pos-row{padding-left:4px;padding-right:4px}
+  .badges{max-width:48%}
+}
