@@ -1,28 +1,31 @@
-# =LOVE 生写真管理 Ver0.96
+# =LOVE 生写真管理 Ver0.97
 
-## PWA機能
-- iPhoneのSafariで共有ボタンから「ホーム画面に追加」
-- ホーム画面に専用アイコンを表示
-- ホーム画面から起動するとブラウザの枠を省いたアプリ表示
-- 一度オンラインで開けば、通信がない状態でも閲覧可能
-- 新版が公開された場合は画面内に更新案内を表示
+## 表示改善
+- ヨリ・ヒキ・チュウを横3列でコンパクトに表示
+- 各ポジション内に「欲しい・直筆・枚数」をまとめて表示
+- 未所持一覧はメンバーの五十音順
+- COMPLETEが表示されても作品名は1行表示
+- 長い作品名は末尾を「…」で省略
 
-## キャッシュ更新
-CSS・JavaScript・JSONはVer0.96のURLで読み込み、Service Workerのキャッシュ名もバージョンごとに変更しています。
-
-## Ver0.95から更新するファイル
+## Ver0.96から更新するファイル
 ```text
 index.html
 css/style.css
 js/app.js
+data/members.json
 data/config.json
-manifest.webmanifest
 service-worker.js
-icons/icon-192.png
-icons/icon-512.png
-icons/apple-touch-icon.png
 CHANGELOG.md
 README.md
 ```
 
-`events.json`、`members.json`、`positions.json`は更新不要です。
+次のファイルは更新不要です。
+
+```text
+data/events.json
+data/positions.json
+manifest.webmanifest
+icons/icon-192.png
+icons/icon-512.png
+icons/apple-touch-icon.png
+```
