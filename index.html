@@ -8,10 +8,10 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="生写真管理">
-<link rel="manifest" href="./manifest.webmanifest?v=0.98">
-<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=0.98">
+<link rel="manifest" href="./manifest.webmanifest?v=0.99">
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=0.99">
 <title>=LOVE 生写真管理</title>
-<link rel="stylesheet" href="./css/style.css?v=0.98">
+<link rel="stylesheet" href="./css/style.css?v=0.99">
 </head>
 <body>
 <section id="homeScreen" class="home">
@@ -22,6 +22,7 @@
 <button class="quick" onclick="showPage('wishlist')"><span>♡</span>欲しい一覧</button>
 <button class="quick" onclick="showPage('trade')"><span>🔄</span>提供可能</button>
 <button class="quick" onclick="showPage('missing')"><span>🔎</span>未所持一覧</button>
+<button class="quick" onclick="showPage('oshi')"><span>👑</span>推し設定</button>
 <button class="quick" onclick="showPage('backup')"><span>💾</span>バックアップ</button>
 </div>
 <div id="memberGrid" class="member-grid"></div>
@@ -49,6 +50,10 @@
 <option value="">新着：すべて</option>
 <option value="new">NEWのみ</option>
 </select>
+<select id="oshiFilter">
+<option value="">メンバー：すべて</option>
+<option value="oshi">推しだけ表示</option>
+</select>
 </div>
 </div></div></header>
 <main class="wrap">
@@ -60,6 +65,7 @@
 <section id="wishlistPage" class="hidden"></section>
 <section id="tradePage" class="hidden"></section>
 <section id="missingPage" class="hidden"></section>
+<section id="oshiPage" class="hidden"></section>
 <section id="backupPage" class="hidden"></section>
 </main>
 <nav class="bottom-nav">
@@ -75,8 +81,8 @@
   <button id="applyUpdateButton">更新する</button>
 </div>
 <div id="offlineBanner" class="offline-banner hidden">オフラインで表示しています</div>
-<div id="versionLabel" class="version-label">Ver 0.98</div>
-<script src="./js/app.js?v=0.98"></script>
+<div id="versionLabel" class="version-label">Ver 0.99</div>
+<script src="./js/app.js?v=0.99"></script>
 <script>
 (() => {
   const updateBanner = document.getElementById("updateBanner");
@@ -101,7 +107,7 @@
 
   window.addEventListener("load", async () => {
     try {
-      const registration = await navigator.serviceWorker.register("./service-worker.js?v=0.98", {scope: "./"});
+      const registration = await navigator.serviceWorker.register("./service-worker.js?v=0.99", {scope: "./"});
       const showUpdate = worker => {
         if (!worker) return;
         updateBanner.classList.remove("hidden");
