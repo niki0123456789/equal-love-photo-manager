@@ -1,5 +1,5 @@
 {
-  "version": "0.95",
+  "version": "0.96",
   "releaseDate": "2026-07-14",
   "dataVersion": "2026-07-14",
   "newItemCount": 12,
@@ -12,5 +12,6 @@
     "work",
     "officialUrl",
     "addedDate"
-  ]
+  ],
+  "pwaEnabled": true
 }
