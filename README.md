@@ -1,13 +1,12 @@
-# =LOVE 生写真管理 Ver0.97
+# =LOVE 生写真管理 Ver0.98
 
-## 表示改善
-- ヨリ・ヒキ・チュウを横3列でコンパクトに表示
-- 各ポジション内に「欲しい・直筆・枚数」をまとめて表示
-- 未所持一覧はメンバーの五十音順
-- COMPLETEが表示されても作品名は1行表示
-- 長い作品名は末尾を「…」で省略
+## 改善内容
+- 未所持一覧はメンバーを五十音順でセクション分け
+- 各メンバー内のイベントを新しい順／古い順で切り替え
+- TOPのメンバーカードにコンプ率と進捗バーを表示
+- メンバーカラーを、識別しやすい濃さのパステルカラーへ調整
 
-## Ver0.96から更新するファイル
+## Ver0.97から更新するファイル
 ```text
 index.html
 css/style.css
@@ -19,13 +18,10 @@ CHANGELOG.md
 README.md
 ```
 
-次のファイルは更新不要です。
-
+更新不要：
 ```text
 data/events.json
 data/positions.json
 manifest.webmanifest
-icons/icon-192.png
-icons/icon-512.png
-icons/apple-touch-icon.png
+iconsフォルダ内の3ファイル
 ```
