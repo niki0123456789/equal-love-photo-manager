@@ -5,10 +5,10 @@ let APP_CONFIG = {};
 
 async function loadAppData() {
   const [eventsResponse, membersResponse, positionsResponse, configResponse] = await Promise.all([
-    fetch("./data/events.json?v=0.97",{cache:"no-store"}),
-    fetch("./data/members.json?v=0.97",{cache:"no-store"}),
-    fetch("./data/positions.json?v=0.97",{cache:"no-store"}),
-    fetch("./data/config.json?v=0.97",{cache:"no-store"})
+    fetch("./data/events.json?v=0.98",{cache:"no-store"}),
+    fetch("./data/members.json?v=0.98",{cache:"no-store"}),
+    fetch("./data/positions.json?v=0.98",{cache:"no-store"}),
+    fetch("./data/config.json?v=0.98",{cache:"no-store"})
   ]);
 
   if (!eventsResponse.ok || !membersResponse.ok || !positionsResponse.ok || !configResponse.ok) {
@@ -60,6 +60,7 @@ function initializeApp() {
     pageMemberId:savedPrefs.pageMemberId||"",
     missingMemberId:savedPrefs.missingMemberId||"",
     missingPositionId:savedPrefs.missingPositionId||"",
+    missingEventOrder:savedPrefs.missingEventOrder||"desc",
     missingSearch:savedPrefs.missingSearch||"",
     counts:JSON.parse(localStorage.getItem(COUNT_KEY)||"{}"),
     signs:JSON.parse(localStorage.getItem(SIGN_KEY)||"{}"),
@@ -77,6 +78,7 @@ function initializeApp() {
       pageMemberId:state.pageMemberId,
       missingMemberId:state.missingMemberId,
       missingPositionId:state.missingPositionId,
+      missingEventOrder:state.missingEventOrder,
       missingSearch:state.missingSearch
     }));
   }
@@ -228,34 +230,50 @@ function initializeApp() {
   }
   function groupedMissingItems(){
     const q=normalizeText(state.missingSearch);
-    const members=state.missingMemberId?MEMBERS.filter(m=>m.id===state.missingMemberId):MEMBERS;
+    const members=(state.missingMemberId?MEMBERS.filter(m=>m.id===state.missingMemberId):[...MEMBERS])
+      .sort((a,b)=>(a.kana||a.name).localeCompare(b.kana||b.name,"ja"));
     const positionIds=state.missingPositionId?[state.missingPositionId]:POSITIONS.map(p=>p.id);
-    const groups=[];
-    members.forEach(m=>eligibleEventsForMember(m).forEach(e=>{
-      if(q&&!eventSearchText(e).includes(q))return;
-      const missing=POSITIONS.filter(p=>positionIds.includes(p.id)&&getCount(e.id,m.id,p.id)===0);
-      if(missing.length)groups.push({m,e,positions:missing});
-    }));
-    return groups.sort((a,b)=>(a.m.kana||a.m.name).localeCompare(b.m.kana||b.m.name,"ja")||b.e.sort-a.e.sort);
+    return members.map(m=>{
+      const items=eligibleEventsForMember(m)
+        .filter(e=>!q||eventSearchText(e).includes(q))
+        .map(e=>({e,positions:POSITIONS.filter(p=>positionIds.includes(p.id)&&getCount(e.id,m.id,p.id)===0)}))
+        .filter(x=>x.positions.length)
+        .sort((a,b)=>state.missingEventOrder==="asc"?a.e.sort-b.e.sort:b.e.sort-a.e.sort);
+      return {m,items};
+    }).filter(group=>group.items.length);
   }
   function renderMissing(){
-    const groups=groupedMissingItems();
-    const typeCount=groups.reduce((sum,g)=>sum+g.positions.length,0);
+    const memberGroups=groupedMissingItems();
+    const eventCount=memberGroups.reduce((sum,g)=>sum+g.items.length,0);
+    const typeCount=memberGroups.reduce((sum,g)=>sum+g.items.reduce((s,x)=>s+x.positions.length,0),0);
     $("missingPage").innerHTML=`
-      <div class="page-head"><h2>🔎 未所持一覧</h2><p>${groups.length}イベント・${typeCount}種類が未所持です</p></div>
+      <div class="page-head"><h2>🔎 未所持一覧</h2><p>${memberGroups.length}人・${eventCount}イベント・${typeCount}種類が未所持です</p></div>
       <div class="missing-controls">
         <select id="missingMemberFilter">${missingMemberOptions()}</select>
         <select id="missingPositionFilter">${missingPositionOptions()}</select>
+        <select id="missingEventOrder">
+          <option value="desc" ${state.missingEventOrder==="desc"?"selected":""}>イベント：新しい順</option>
+          <option value="asc" ${state.missingEventOrder==="asc"?"selected":""}>イベント：古い順</option>
+        </select>
         <div class="searchbox missing-search"><span>🔍</span><input id="missingSearchInput" type="search" value="${esc(state.missingSearch)}" placeholder="年月・楽曲名・ツアー名など"></div>
       </div>
-      <div class="list-page">${groups.length?groups.map(x=>`
-        <div class="item">
-          <div class="item-title">${x.m.emoji} ${x.m.name}${isGraduated(x.m)?'<span class="mini-graduated">卒業</span>':''}</div>
-          <div class="item-meta">${isNewEvent(x.e)?'<span class="inline-new">NEW</span>':''}${esc(x.e.period)}｜${esc(x.e.work)}｜${esc(x.e.category)}</div>
-          <div class="item-tags">${x.positions.map(p=>`<span class="pill missing-pill">${p.name}</span>`).join("")}</div>
-        </div>`).join(""):'<div class="empty">条件に該当する未所持データはありません。</div>'}</div>`;
+      <div class="missing-member-list">${memberGroups.length?memberGroups.map(group=>`
+        <section class="missing-member-section">
+          <div class="missing-member-head" style="--member-accent:${group.m.accent};--member-soft:${group.m.soft}">
+            <div><b>${group.m.emoji} ${group.m.name}</b>${isGraduated(group.m)?'<span class="mini-graduated">卒業</span>':''}</div>
+            <span>${group.items.reduce((s,x)=>s+x.positions.length,0)}種類</span>
+          </div>
+          <div class="missing-event-list">${group.items.map(x=>`
+            <div class="item missing-event-item">
+              <div class="item-title">${isNewEvent(x.e)?'<span class="inline-new">NEW</span>':''}${esc(x.e.period)}</div>
+              <div class="item-meta">${esc(x.e.work)}｜${esc(x.e.category)}</div>
+              <div class="item-tags">${x.positions.map(p=>`<span class="pill missing-pill">${p.name}</span>`).join("")}</div>
+            </div>`).join("")}
+          </div>
+        </section>`).join(""):'<div class="empty">条件に該当する未所持データはありません。</div>'}</div>`;
     document.getElementById("missingMemberFilter").onchange=e=>{state.missingMemberId=e.target.value;savePreferences();renderMissing()};
     document.getElementById("missingPositionFilter").onchange=e=>{state.missingPositionId=e.target.value;savePreferences();renderMissing()};
+    document.getElementById("missingEventOrder").onchange=e=>{state.missingEventOrder=e.target.value;savePreferences();renderMissing()};
     document.getElementById("missingSearchInput").oninput=e=>{state.missingSearch=e.target.value;savePreferences();renderMissing()};
   }
 
@@ -478,8 +496,12 @@ function initializeApp() {
   function createMemberButton(m){
     const b=document.createElement("button");
     b.className=`member-card${isGraduated(m)?" graduated":""}`;
-    b.style.background=isGraduated(m)?"linear-gradient(135deg,#e8e8e8,#fff)":`linear-gradient(135deg,${m.soft},#fff)`;
-    b.innerHTML=`${state.memberId===m.id?'<span class="last-used">前回</span>':''}<span class="emoji">${m.emoji}</span><span class="name">${m.name}</span><span class="small">${isGraduated(m)?`${m.graduation}｜`:""}所持：${memberTotal(m.id)}枚</span>`;
+    b.style.background=isGraduated(m)?"linear-gradient(135deg,#d8d8d8,#fff)":`linear-gradient(135deg,${m.soft},rgba(255,255,255,.88))`;
+    b.style.setProperty("--card-accent",m.accent);
+    b.style.setProperty("--card-soft",m.soft);
+    b.style.borderColor=isGraduated(m)?"rgba(255,255,255,.82)":`${m.accent}66`;
+    const memberStats=statsFor([m]);
+    b.innerHTML=`${state.memberId===m.id?'<span class="last-used">前回</span>':''}<span class="emoji">${m.emoji}</span><span class="name">${m.name}</span><span class="small">${isGraduated(m)?`${m.graduation}｜`:""}所持：${memberTotal(m.id)}枚</span><span class="member-rate-line"><span>コンプ率</span><b>${memberStats.rate}%</b></span><span class="member-rate-bar"><i style="width:${memberStats.rate}%"></i></span>`;
     b.onclick=()=>openMember(m.id);
     return b;
   }
