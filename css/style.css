@@ -307,3 +307,26 @@ button,input,select{font:inherit}.hidden{display:none!important}.wrap{width:min(
 .oshi-rank-select{min-width:116px}
 .oshi-mini-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-top:9px}.oshi-mini-stats span{text-align:center;font-size:9px;color:var(--muted)}.oshi-mini-stats b{display:block;font-size:12px;color:var(--member-accent)}
 @media(max-width:390px){.oshi-setting-main{align-items:flex-start;flex-direction:column}.oshi-rank-select{width:100%}}
+
+
+/* Ver1.0 完成版 */
+.data-update-label{margin:15px auto 2px;padding:7px 11px;width:max-content;max-width:100%;border-radius:999px;background:rgba(255,255,255,.78);color:#b24675;font-size:10px;font-weight:900;box-shadow:0 4px 12px rgba(120,45,80,.08)}
+.guide-list{display:grid;gap:11px;padding-bottom:90px}
+.guide-card{display:flex;gap:12px;padding:15px}
+.guide-card>span{display:grid;place-items:center;flex:none;width:32px;height:32px;border-radius:50%;background:var(--accent);color:#fff;font-weight:900}
+.guide-card h3{margin:1px 0 5px;font-size:15px}.guide-card p{margin:0;color:var(--muted);font-size:12px;line-height:1.65}
+.guide-card.important{border-color:#efb5ca;background:#fff8fb}
+.about-hero{padding:24px;text-align:center;background:linear-gradient(135deg,#ffd2e3,#fff)}
+.about-version{font-size:29px;font-weight:950;color:#c6487e}.about-status{display:inline-block;margin-top:7px;padding:5px 9px;border-radius:999px;background:#eaf8ee;color:#39824c;font-size:10px;font-weight:900}.about-hero p{margin:12px 0 0;color:var(--muted);font-size:12px}
+.about-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}.about-grid .panel{padding:14px 5px;text-align:center}.about-grid b{display:block;font-size:20px;color:var(--accent)}.about-grid span{font-size:10px;color:var(--muted)}
+.about-notes{margin:12px 0 90px;padding:18px}.about-notes h3{margin:0 0 6px}.about-notes h3:not(:first-child){margin-top:18px}.about-notes p{margin:0;color:var(--muted);font-size:12px;line-height:1.7}
+.empty-state{padding:36px 18px;border:1px dashed #e2baca;border-radius:20px;background:#fff9fb;text-align:center}.empty-state>span{font-size:34px}.empty-state h3{margin:8px 0 5px}.empty-state p{margin:0;color:var(--muted);font-size:12px}.empty-state button{margin-top:14px;border:0;border-radius:13px;background:var(--accent);color:#fff;padding:10px 15px;font-weight:900}
+.fatal-error{display:grid;place-items:center;min-height:100vh;padding:20px;background:linear-gradient(180deg,#f7a8c8,#ffe7f0);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Hiragino Sans","Yu Gothic",sans-serif}
+.fatal-error-card{width:min(100%,440px);padding:27px 20px;border-radius:24px;background:#fff;text-align:center;box-shadow:0 18px 44px rgba(102,42,69,.2)}.fatal-error-icon{font-size:43px}.fatal-error h1{margin:10px 0 7px;font-size:22px}.fatal-error p{margin:0;color:#756b72;font-size:13px;line-height:1.7}.fatal-error details{margin:15px 0;text-align:left;font-size:11px}.fatal-error code{display:block;margin-top:6px;padding:9px;border-radius:9px;background:#f5f1f3;word-break:break-all}.fatal-error button,.fatal-error a{display:block;width:100%;margin-top:9px;border-radius:13px;padding:11px;font-weight:900;text-decoration:none}.fatal-error button{border:0;background:#ef7fad;color:#fff}.fatal-error a{border:1px solid #ef7fad;color:#c24f7e;background:#fff}
+@media(max-width:390px){
+  .quick-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .quick{padding-left:5px;padding-right:5px}
+  .about-grid{gap:5px}.about-grid span{font-size:9px}
+  .summary-card b{font-size:18px}
+  .top-inner{padding-left:10px;padding-right:10px}
+}
