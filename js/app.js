@@ -31,7 +31,7 @@ async function loadAppData() {
 
 function initializeApp() {
   const COUNT_KEY="equal-love-photo-manager-counts-v03",SIGN_KEY="equal-love-photo-manager-signatures-v04",WANT_KEY="equal-love-photo-manager-wants-v05";
-  const PREF_KEY="equal-love-photo-manager-preferences-v0925";
+  const PREF_KEY="equal-love-photo-manager-preferences-v095";
   const savedPrefs=JSON.parse(localStorage.getItem(PREF_KEY)||"{}");
   const state={
     mode:"all",
@@ -84,7 +84,14 @@ function initializeApp() {
   }
   function isNewEvent(e){return Number(e.sort)>=newestSortThreshold()}
   function isGraduated(m){return m?.status==="graduated"}
-  function eventAvailableForMember(e,m){return !isGraduated(m)||Number(e.sort)<=Number(m.maxSort)}
+  function eventAvailableForMember(e,m){
+    if(!m)return true;
+    const include=Array.isArray(m.includeEventIds)?m.includeEventIds:[];
+    const exclude=Array.isArray(m.excludeEventIds)?m.excludeEventIds:[];
+    if(exclude.includes(e.id))return false;
+    if(include.includes(e.id))return true;
+    return !isGraduated(m)||Number(e.sort)<=Number(m.maxSort);
+  }
   function eligibleEventsForMember(m,events=EVENTS){return events.filter(e=>eventAvailableForMember(e,m))}
   function eligibleMembersForEvent(e){return MEMBERS.filter(m=>eventAvailableForMember(e,m))}
   function scopeMembers(){
@@ -272,37 +279,146 @@ function initializeApp() {
     if(msg){msg.textContent="バックアップファイルを保存しました。";msg.className="backup-message success"}
   }
   function validObject(value){return value&&typeof value==="object"&&!Array.isArray(value)}
+  function validDateString(value){return typeof value==="string"&&!Number.isNaN(Date.parse(value))}
+  function sanitizeBackupMap(value,type){
+    if(!validObject(value))throw new Error(`${type}データがオブジェクトではありません`);
+    const clean={};
+    for(const [key,item] of Object.entries(value)){
+      if(typeof key!=="string"||!key.includes("__"))throw new Error(`${type}データのキー形式が不正です`);
+      if(type==="所持"){
+        const n=Number(item);
+        if(!Number.isInteger(n)||n<0||n>999)throw new Error(`${type}データの値が不正です`);
+        if(n>0)clean[key]=n;
+      }else{
+        if(item!==true&&item!==false)throw new Error(`${type}データの値が不正です`);
+        if(item===true)clean[key]=true;
+      }
+    }
+    return clean;
+  }
+  function validateBackupPayload(payload){
+    if(!validObject(payload))throw new Error("JSONの中身が正しくありません");
+    if(payload.app!=="equal-love-photo-manager")throw new Error("別のアプリのバックアップです");
+    if(!Number.isInteger(Number(payload.backupVersion)))throw new Error("バックアップのバージョンが不正です");
+    if(!validDateString(payload.exportedAt))throw new Error("バックアップ作成日時がありません");
+    if(!validObject(payload.data))throw new Error("バックアップデータがありません");
+    return {
+      exportedAt:new Date(payload.exportedAt),
+      counts:sanitizeBackupMap(payload.data.counts,"所持"),
+      signs:sanitizeBackupMap(payload.data.signs,"直筆"),
+      wants:sanitizeBackupMap(payload.data.wants,"欲しい")
+    };
+  }
+  function formatBackupDate(date){
+    return new Intl.DateTimeFormat("ja-JP",{year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"}).format(date);
+  }
+  function validateMasterData(){
+    const issues=[];
+    const required=Array.isArray(APP_CONFIG.requiredEventFields)?APP_CONFIG.requiredEventFields:["officialName","id","sort","category","period","work","officialUrl","addedDate"];
+    const idSeen=new Map(),sortSeen=new Map();
+    EVENTS.forEach((e,index)=>{
+      const row=index+1;
+      required.forEach(field=>{
+        if(e[field]===undefined||e[field]===null||String(e[field]).trim()===""){
+          issues.push({level:field==="officialUrl"?"warning":"error",type:"必須項目抜け",message:`${row}件目：${field} が空です`});
+        }
+      });
+      if(e.id){
+        if(idSeen.has(e.id))issues.push({level:"error",type:"event_id重複",message:`${e.id}（${idSeen.get(e.id)}件目・${row}件目）`});
+        else idSeen.set(e.id,row);
+      }
+      if(e.sort!==undefined&&e.sort!==null&&e.sort!==""){
+        const key=String(e.sort);
+        if(sortSeen.has(key))issues.push({level:"error",type:"sort重複",message:`sort ${key}（${sortSeen.get(key)}件目・${row}件目）`});
+        else sortSeen.set(key,row);
+      }
+      if(e.officialUrl&& !/^https:\/\/.+/i.test(e.officialUrl)){
+        issues.push({level:"warning",type:"URL形式",message:`${e.id}：HTTPSのURLではありません`});
+      }
+      if(e.addedDate&&!/^\d{4}-\d{2}-\d{2}$/.test(e.addedDate)){
+        issues.push({level:"error",type:"追加日形式",message:`${e.id}：addedDateはYYYY-MM-DD形式にしてください`});
+      }
+    });
+    MEMBERS.forEach(m=>{
+      ["includeEventIds","excludeEventIds"].forEach(field=>{
+        const ids=Array.isArray(m[field])?m[field]:[];
+        ids.forEach(id=>{
+          if(!EVENTS.some(e=>e.id===id))issues.push({level:"warning",type:"例外設定",message:`${m.name}：${field}の ${id} がevents.jsonにありません`});
+        });
+      });
+      const overlap=(m.includeEventIds||[]).filter(id=>(m.excludeEventIds||[]).includes(id));
+      overlap.forEach(id=>issues.push({level:"error",type:"例外設定重複",message:`${m.name}：${id} が表示・非表示の両方に設定されています`}));
+    });
+    return issues;
+  }
+  let pendingBackup=null;
   function importBackupFile(file){
     if(!file)return;
+    pendingBackup=null;
+    const msg=document.getElementById("backupMessage");
+    const preview=document.getElementById("backupPreview");
     const reader=new FileReader();
     reader.onload=()=>{
       try{
         const payload=JSON.parse(reader.result);
-        if(payload.app!=="equal-love-photo-manager"||!validObject(payload.data)||!validObject(payload.data.counts)||!validObject(payload.data.signs)||!validObject(payload.data.wants)){
-          throw new Error("形式が違います");
-        }
-        const counts=payload.data.counts,signs=payload.data.signs,wants=payload.data.wants;
-        const summary=`所持データ ${Object.keys(counts).length}件\n直筆データ ${Object.keys(signs).length}件\n欲しいデータ ${Object.keys(wants).length}件`;
-        if(!confirm(`このバックアップで現在のデータを上書きします。\n\n${summary}\n\n復元しますか？`))return;
-        localStorage.setItem(COUNT_KEY,JSON.stringify(counts));
-        localStorage.setItem(SIGN_KEY,JSON.stringify(signs));
-        localStorage.setItem(WANT_KEY,JSON.stringify(wants));
-        alert("復元が完了しました。画面を再読み込みします。");
-        location.reload();
+        pendingBackup=validateBackupPayload(payload);
+        preview.innerHTML=`
+          <div class="backup-preview-title">✅ バックアップを確認しました</div>
+          <div class="backup-preview-date">作成日時：${formatBackupDate(pendingBackup.exportedAt)}</div>
+          <div class="backup-preview-counts">
+            <span>所持 ${Object.keys(pendingBackup.counts).length}件</span>
+            <span>直筆 ${Object.keys(pendingBackup.signs).length}件</span>
+            <span>欲しい ${Object.keys(pendingBackup.wants).length}件</span>
+          </div>
+          <button id="restoreBackupButton" class="primary-action">このバックアップを復元</button>`;
+        preview.className="backup-preview valid";
+        msg.textContent="内容に問題はありません。作成日時と件数を確認してから復元してください。";
+        msg.className="backup-message success";
+        document.getElementById("restoreBackupButton").onclick=restorePendingBackup;
       }catch(error){
         console.error(error);
-        const msg=document.getElementById("backupMessage");
-        if(msg){msg.textContent="バックアップファイルを読み込めませんでした。正しいJSONファイルを選択してください。";msg.className="backup-message error"}
+        pendingBackup=null;
+        preview.innerHTML="";
+        preview.className="backup-preview invalid";
+        msg.textContent=`読み込みを中止しました：${error.message}`;
+        msg.className="backup-message error";
       }
     };
     reader.onerror=()=>{
-      const msg=document.getElementById("backupMessage");
-      if(msg){msg.textContent="ファイルの読み込みに失敗しました。";msg.className="backup-message error"}
+      pendingBackup=null;
+      msg.textContent="ファイルの読み込みに失敗しました。";
+      msg.className="backup-message error";
     };
     reader.readAsText(file);
   }
+  function restorePendingBackup(){
+    if(!pendingBackup)return;
+    const summary=`作成日時：${formatBackupDate(pendingBackup.exportedAt)}\n所持 ${Object.keys(pendingBackup.counts).length}件\n直筆 ${Object.keys(pendingBackup.signs).length}件\n欲しい ${Object.keys(pendingBackup.wants).length}件`;
+    if(!confirm(`現在のデータを上書きします。\n\n${summary}\n\n復元しますか？`))return;
+    localStorage.setItem(COUNT_KEY,JSON.stringify(pendingBackup.counts));
+    localStorage.setItem(SIGN_KEY,JSON.stringify(pendingBackup.signs));
+    localStorage.setItem(WANT_KEY,JSON.stringify(pendingBackup.wants));
+    alert("復元が完了しました。画面を再読み込みします。");
+    location.reload();
+  }
+  function deleteAllUserData(){
+    if(!confirm("所持枚数・直筆・欲しい情報・フィルター設定をすべて削除します。\nこの操作は元に戻せません。\n\n続けますか？"))return;
+    const answer=prompt("最終確認です。\n削除する場合は「全削除」と入力してください。");
+    if(answer!=="全削除"){
+      const msg=document.getElementById("backupMessage");
+      if(msg){msg.textContent="入力が一致しなかったため、削除を中止しました。";msg.className="backup-message error"}
+      return;
+    }
+    [COUNT_KEY,SIGN_KEY,WANT_KEY,PREF_KEY].forEach(key=>localStorage.removeItem(key));
+    alert("すべての保存データを削除しました。画面を再読み込みします。");
+    location.reload();
+  }
   function renderBackup(){
     const s=backupStats();
+    const issues=validateMasterData();
+    const errors=issues.filter(x=>x.level==="error");
+    const warnings=issues.filter(x=>x.level==="warning");
+    const issueRows=issues.slice(0,50).map(x=>`<li class="${x.level}"><b>${esc(x.type)}</b><span>${esc(x.message)}</span></li>`).join("");
     $("backupPage").innerHTML=`
       <div class="page-head"><h2>💾 バックアップ・復元</h2><p>端末変更やブラウザデータ消去に備えて保存できます</p></div>
       <div class="backup-summary">
@@ -319,14 +435,29 @@ function initializeApp() {
       <div class="panel backup-panel">
         <div class="backup-icon">📥</div>
         <h3>バックアップから復元</h3>
-        <p>保存済みのJSONファイルを選択すると、現在のデータを上書きして復元します。</p>
+        <p>選択したファイルを自動検査し、作成日時と件数を表示してから復元します。</p>
         <input id="importBackupInput" class="file-input" type="file" accept=".json,application/json">
         <label for="importBackupInput" class="secondary-action">バックアップファイルを選択</label>
-        <div class="backup-warning">⚠️ 復元すると、現在このブラウザに保存されているデータは上書きされます。</div>
+        <div id="backupPreview" class="backup-preview"></div>
+        <div class="backup-warning">⚠️ 壊れたJSON・別形式のJSON・不正な値を含むファイルは復元できません。</div>
+      </div>
+      <div class="panel data-check-panel">
+        <div class="data-check-head">
+          <div><h3>🧪 データ不備チェック</h3><p>events.jsonとメンバー例外設定を自動確認します。</p></div>
+          <span class="check-result ${errors.length?"ng":warnings.length?"warning":"ok"}">${errors.length}エラー・${warnings.length}警告</span>
+        </div>
+        ${issues.length?`<ul class="issue-list">${issueRows}</ul>${issues.length>50?`<p class="issue-more">ほか${issues.length-50}件</p>`:""}`:'<div class="check-perfect">✅ 重複・必須項目抜け・URL抜け・例外設定の問題はありません。</div>'}
+      </div>
+      <div class="panel danger-panel">
+        <div class="backup-icon">🗑️</div>
+        <h3>保存データを全削除</h3>
+        <p>所持枚数・直筆・欲しい情報・保存済みフィルター設定を削除します。確認は2段階です。</p>
+        <button id="deleteAllDataButton" class="danger-action">すべての保存データを削除</button>
       </div>
       <div id="backupMessage" class="backup-message"></div>`;
     document.getElementById("exportBackupButton").onclick=exportBackup;
     document.getElementById("importBackupInput").onchange=e=>importBackupFile(e.target.files?.[0]);
+    document.getElementById("deleteAllDataButton").onclick=deleteAllUserData;
   }
 
   function createMemberButton(m){
