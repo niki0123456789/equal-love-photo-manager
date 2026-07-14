@@ -5,10 +5,10 @@ let APP_CONFIG = {};
 
 async function loadAppData() {
   const [eventsResponse, membersResponse, positionsResponse, configResponse] = await Promise.all([
-    fetch("./data/events.json?v=0.96",{cache:"no-store"}),
-    fetch("./data/members.json?v=0.96",{cache:"no-store"}),
-    fetch("./data/positions.json?v=0.96",{cache:"no-store"}),
-    fetch("./data/config.json?v=0.96",{cache:"no-store"})
+    fetch("./data/events.json?v=0.97",{cache:"no-store"}),
+    fetch("./data/members.json?v=0.97",{cache:"no-store"}),
+    fetch("./data/positions.json?v=0.97",{cache:"no-store"}),
+    fetch("./data/config.json?v=0.97",{cache:"no-store"})
   ]);
 
   if (!eventsResponse.ok || !membersResponse.ok || !positionsResponse.ok || !configResponse.ok) {
@@ -236,7 +236,7 @@ function initializeApp() {
       const missing=POSITIONS.filter(p=>positionIds.includes(p.id)&&getCount(e.id,m.id,p.id)===0);
       if(missing.length)groups.push({m,e,positions:missing});
     }));
-    return groups.sort((a,b)=>b.e.sort-a.e.sort||a.m.name.localeCompare(b.m.name,"ja"));
+    return groups.sort((a,b)=>(a.m.kana||a.m.name).localeCompare(b.m.kana||b.m.name,"ja")||b.e.sort-a.e.sort);
   }
   function renderMissing(){
     const groups=groupedMissingItems();
