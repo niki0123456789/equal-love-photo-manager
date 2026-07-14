@@ -1,12 +1,12 @@
-const CACHE_NAME = "equal-love-photo-manager-v100";
+const CACHE_NAME = "equal-love-photo-manager-v100-orderfix";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./css/style.css?v=1.0.0",
-  "./js/app.js?v=1.0.0",
+  "./js/app.js?v=1.0.0-orderfix",
   "./data/events.json?v=1.0.0",
   "./data/members.json?v=1.0.0",
-  "./data/positions.json?v=1.0.0",
+  "./data/positions.json?v=1.0.0-orderfix",
   "./data/config.json?v=1.0.0",
   "./manifest.webmanifest?v=1.0.0",
   "./icons/icon-192.png",
