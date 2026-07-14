@@ -208,3 +208,66 @@ button,input,select{font:inherit}.hidden{display:none!important}.wrap{width:min(
   .pos-row{padding-left:4px;padding-right:4px}
   .badges{max-width:48%}
 }
+
+
+/* Ver0.98 未所持グループ・コンプ率・濃いパステルカラー */
+.member-card:not(.graduated){
+  background:linear-gradient(140deg,var(--card-soft,#f5d5e3),rgba(255,255,255,.88));
+}
+.member-rate-line{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  margin-top:9px;
+  font-size:10px;
+  font-weight:800;
+  color:#665b65;
+}
+.member-rate-line b{font-size:12px;color:var(--card-accent,var(--accent))}
+.member-rate-bar{
+  display:block;
+  height:6px;
+  margin-top:4px;
+  overflow:hidden;
+  border-radius:999px;
+  background:rgba(255,255,255,.78);
+  box-shadow:inset 0 0 0 1px rgba(80,55,68,.07);
+}
+.member-rate-bar i{
+  display:block;
+  height:100%;
+  border-radius:inherit;
+  background:var(--card-accent,var(--accent));
+}
+.missing-controls{
+  grid-template-columns:1fr 1fr;
+}
+#missingEventOrder{grid-column:1/-1}
+.missing-member-list{display:grid;gap:16px;padding-bottom:90px}
+.missing-member-section{
+  overflow:hidden;
+  border:1px solid var(--line);
+  border-radius:20px;
+  background:#fff;
+  box-shadow:var(--shadow);
+}
+.missing-member-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:13px 14px;
+  border-left:7px solid var(--member-accent);
+  background:linear-gradient(90deg,var(--member-soft),#fff);
+}
+.missing-member-head b{font-size:15px}
+.missing-member-head>span{font-size:11px;font-weight:900;color:var(--member-accent)}
+.missing-event-list{display:grid;gap:8px;padding:10px}
+.missing-event-item{
+  box-shadow:none;
+  border-radius:14px;
+  padding:11px 12px;
+}
+.missing-event-item .item-title{font-size:13px}
+.missing-event-item .item-meta{line-height:1.45}
