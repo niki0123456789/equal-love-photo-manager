@@ -5,10 +5,10 @@ let APP_CONFIG = {};
 
 async function loadAppData() {
   const [eventsResponse, membersResponse, positionsResponse, configResponse] = await Promise.all([
-    fetch("./data/events.json"),
-    fetch("./data/members.json"),
-    fetch("./data/positions.json"),
-    fetch("./data/config.json")
+    fetch("./data/events.json?v=0.96",{cache:"no-store"}),
+    fetch("./data/members.json?v=0.96",{cache:"no-store"}),
+    fetch("./data/positions.json?v=0.96",{cache:"no-store"}),
+    fetch("./data/config.json?v=0.96",{cache:"no-store"})
   ]);
 
   if (!eventsResponse.ok || !membersResponse.ok || !positionsResponse.ok || !configResponse.ok) {
@@ -24,6 +24,21 @@ async function loadAppData() {
   const versionLabel = document.getElementById("versionLabel");
   if (versionLabel) {
     versionLabel.textContent = `Ver ${config.version}`;
+  }
+
+  const VERSION_KEY="equal-love-photo-manager-last-version";
+  const previousVersion=localStorage.getItem(VERSION_KEY);
+  if(previousVersion&&previousVersion!==config.version){
+    const banner=document.getElementById("updateBanner");
+    const button=document.getElementById("applyUpdateButton");
+    if(banner){
+      banner.querySelector("b").textContent=`Ver ${config.version}に更新されました`;
+      banner.querySelector("span").textContent="新機能を反映するため、最新版を読み込みます。";
+      banner.classList.remove("hidden");
+      if(button)button.onclick=()=>{localStorage.setItem(VERSION_KEY,config.version);location.reload()};
+    }
+  }else{
+    localStorage.setItem(VERSION_KEY,config.version);
   }
 
   initializeApp();
