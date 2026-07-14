@@ -5,10 +5,10 @@ let APP_CONFIG = {};
 
 async function loadAppData() {
   const [eventsResponse, membersResponse, positionsResponse, configResponse] = await Promise.all([
-    fetch("./data/events.json?v=0.99",{cache:"no-store"}),
-    fetch("./data/members.json?v=0.99",{cache:"no-store"}),
-    fetch("./data/positions.json?v=0.99",{cache:"no-store"}),
-    fetch("./data/config.json?v=0.99",{cache:"no-store"})
+    fetch("./data/events.json?v=1.0.0",{cache:"no-store"}),
+    fetch("./data/members.json?v=1.0.0",{cache:"no-store"}),
+    fetch("./data/positions.json?v=1.0.0",{cache:"no-store"}),
+    fetch("./data/config.json?v=1.0.0",{cache:"no-store"})
   ]);
 
   if (!eventsResponse.ok || !membersResponse.ok || !positionsResponse.ok || !configResponse.ok) {
@@ -21,9 +21,21 @@ async function loadAppData() {
   const config = await configResponse.json();
   APP_CONFIG = config;
 
+  if(!Array.isArray(EVENTS)||!Array.isArray(MEMBERS)||!Array.isArray(POSITIONS)){
+    throw new Error("データ形式が正しくありません。");
+  }
+  if(!EVENTS.length||!MEMBERS.length||!POSITIONS.length){
+    throw new Error("必要なデータが空です。");
+  }
+
   const versionLabel = document.getElementById("versionLabel");
   if (versionLabel) {
     versionLabel.textContent = `Ver ${config.version}`;
+  }
+  const dataUpdateLabel=document.getElementById("dataUpdateLabel");
+  if(dataUpdateLabel){
+    const date=config.dataUpdatedAt||config.releaseDate||"不明";
+    dataUpdateLabel.textContent=`データ更新日：${date.replaceAll("-","/")}`;
   }
 
   const VERSION_KEY="equal-love-photo-manager-last-version";
@@ -166,8 +178,8 @@ function initializeApp() {
   function openMember(id){state.mode="member";state.memberId=id;state.pageMemberId=id;savePreferences();theme(MEMBERS.find(m=>m.id===id));openManager()}
   function openAll(){state.mode="all";state.memberId=null;state.pageMemberId="";savePreferences();theme(null);openManager()}
   function openManager(){$("homeScreen").classList.add("hidden");$("managerScreen").classList.remove("hidden");$("ownershipFilterRow").classList.toggle("hidden",state.mode==="all");showPage("collection");window.scrollTo(0,0)}
-  function updateHeader(){const m=MEMBERS.find(x=>x.id===state.memberId);$("memberTitle").textContent=state.mode==="all"?"🌈 全メンバー":`${m.emoji} ${m.name}`;const pageLabel=state.page==="collection"?"生写真コレクション":state.page==="stats"?"統計・年代別コンプ率":state.page==="wishlist"?"欲しい生写真一覧":state.page==="trade"?"ダブり・提供可能一覧":state.page==="missing"?"未所持一覧":state.page==="oshi"?"推しカスタマイズ":"バックアップ・復元";$("memberSub").textContent=state.mode==="member"&&isGraduated(m)?`${m.graduation}｜${pageLabel}`:pageLabel}
-  function showPage(page){if($("homeScreen").classList.contains("hidden")===false){state.mode="all";state.memberId=null;theme(null);$("homeScreen").classList.add("hidden");$("managerScreen").classList.remove("hidden")}state.page=page;["collection","stats","wishlist","trade","missing","oshi","backup"].forEach(p=>$(p+"Page").classList.toggle("hidden",p!==page));$("managerTools").classList.toggle("hidden",page!=="collection");document.querySelectorAll(".bottom-nav button").forEach(b=>b.classList.toggle("active",b.dataset.page===page));updateHeader();if(page==="collection")renderCollection();if(page==="stats")renderStats();if(page==="wishlist")renderWishlist();if(page==="trade")renderTrade();if(page==="missing")renderMissing();if(page==="oshi")renderOshi();if(page==="backup")renderBackup();window.scrollTo(0,0)}
+  function updateHeader(){const m=MEMBERS.find(x=>x.id===state.memberId);$("memberTitle").textContent=state.mode==="all"?"🌈 全メンバー":`${m.emoji} ${m.name}`;const pageLabel=state.page==="collection"?"生写真コレクション":state.page==="stats"?"統計・年代別コンプ率":state.page==="wishlist"?"欲しい生写真一覧":state.page==="trade"?"ダブり・提供可能一覧":state.page==="missing"?"未所持一覧":state.page==="oshi"?"推しカスタマイズ":state.page==="help"?"使い方":state.page==="about"?"バージョン情報":"バックアップ・復元";$("memberSub").textContent=state.mode==="member"&&isGraduated(m)?`${m.graduation}｜${pageLabel}`:pageLabel}
+  function showPage(page){if($("homeScreen").classList.contains("hidden")===false){state.mode="all";state.memberId=null;theme(null);$("homeScreen").classList.add("hidden");$("managerScreen").classList.remove("hidden")}state.page=page;["collection","stats","wishlist","trade","missing","oshi","backup","help","about"].forEach(p=>$(p+"Page").classList.toggle("hidden",p!==page));$("managerTools").classList.toggle("hidden",page!=="collection");document.querySelectorAll(".bottom-nav button").forEach(b=>b.classList.toggle("active",b.dataset.page===page));updateHeader();if(page==="collection")renderCollection();if(page==="stats")renderStats();if(page==="wishlist")renderWishlist();if(page==="trade")renderTrade();if(page==="missing")renderMissing();if(page==="oshi")renderOshi();if(page==="backup")renderBackup();if(page==="help")renderHelp();if(page==="about")renderAbout();window.scrollTo(0,0)}
   function statsFor(ms,evs=EVENTS){let total=0,types=0,signed=0,wanted=0,possible=0;ms.forEach(m=>evs.filter(e=>eventAvailableForMember(e,m)).forEach(e=>POSITIONS.forEach(p=>{possible++;const n=getCount(e.id,m.id,p.id);total+=n;if(n>0)types++;if(isSigned(e.id,m.id,p.id))signed++;if(isWanted(e.id,m.id,p.id))wanted++})));return{total,types,signed,wanted,possible,rate:possible?Math.round(types/possible*100):0}}
   function updateSummary(list){const s=statsFor(scopeMembers());$("ownedTotal").textContent=s.total;$("ownedTypes").textContent=s.types;$("signedTotal").textContent=s.signed}
   function complete(e,m){return POSITIONS.every(p=>getCount(e.id,m.id,p.id)>0)}
@@ -176,7 +188,24 @@ function initializeApp() {
   function renderMemberCard(e,m){const card=document.createElement("article");card.className="event-card";card.innerHTML=`<div class="event-head"><div class="event-topline"><div><div class="period">${esc(e.period||e.officialName)}</div><div class="work">${esc(e.work)}</div></div><div class="badges"><span class="badge">${esc(e.category)}</span>${isNewEvent(e)?'<span class="badge new-badge">NEW</span>':''}${complete(e,m)?'<span class="badge complete">COMPLETE</span>':''}</div></div></div><div class="member-line">${m.emoji} ${m.name}</div><div class="positions"></div><div class="event-footer"></div>`;
   POSITIONS.forEach(p=>card.querySelector(".positions").appendChild(renderPositionRow(e,m,p)));const f=card.querySelector(".event-footer");if(e.officialUrl)f.innerHTML=`<span></span><a href="${e.officialUrl}" target="_blank" rel="noopener noreferrer">公式サイト ↗</a>`;else f.remove();return card}
   function renderAllCard(e){const card=document.createElement("article");card.className="event-card";const eligible=eligibleMembersForEvent(e),owned=eligible.reduce((t,m)=>t+POSITIONS.reduce((s,p)=>s+getCount(e.id,m.id,p.id),0),0),want=eligible.reduce((t,m)=>t+POSITIONS.filter(p=>isWanted(e.id,m.id,p.id)).length,0),comp=eligible.filter(m=>complete(e,m)).length;card.innerHTML=`<div class="event-head"><div class="event-topline"><div><div class="period">${esc(e.period||e.officialName)}</div><div class="work">${esc(e.work)}</div><div class="all-summary">所持 ${owned}枚 ／ 欲しい ${want}種 ／ コンプ ${comp}/${eligible.length}人</div></div><div class="badges">${isNewEvent(e)?'<span class="badge new-badge">NEW</span>':''}<span class="badge">${esc(e.category)}</span></div></div></div><div class="event-footer"><button class="expand-btn">${state.expanded[e.id]?"閉じる":`${eligible.length}人分を開く`}</button>${e.officialUrl?`<a href="${e.officialUrl}" target="_blank" rel="noopener noreferrer">公式サイト ↗</a>`:""}</div>`;card.querySelector(".expand-btn").onclick=()=>{state.expanded[e.id]=!state.expanded[e.id];renderCollection()};if(state.expanded[e.id]){const box=document.createElement("div");box.className="all-members";eligible.forEach(m=>{const r=document.createElement("div");r.className="all-row";r.innerHTML=`<div class="all-name">${m.emoji} ${m.name}${isGraduated(m)?'<span class="mini-graduated">卒業</span>':''}</div><div class="all-pos-grid"></div>`;POSITIONS.forEach(p=>r.querySelector(".all-pos-grid").appendChild(renderPositionRow(e,m,p,true)));box.appendChild(r)});card.insertBefore(box,card.querySelector(".event-footer"))}return card}
-  function renderCollection(){const list=filtered();updateSummary(list);$("eventList").innerHTML="";const frag=document.createDocumentFragment();if(state.mode==="all")list.forEach(e=>frag.appendChild(renderAllCard(e)));else{const m=MEMBERS.find(x=>x.id===state.memberId);list.forEach(e=>frag.appendChild(renderMemberCard(e,m)))}$("eventList").appendChild(frag)}
+  function renderCollection(){
+    const list=filtered();
+    updateSummary(list);
+    $("eventList").innerHTML="";
+    if(!list.length){
+      $("eventList").innerHTML=`<div class="empty-state"><span>🔍</span><h3>該当するデータがありません</h3><p>検索条件やフィルターを変更してください。</p><button id="resetFiltersButton">条件をリセット</button></div>`;
+      document.getElementById("resetFiltersButton").onclick=()=>{
+        state.category="";state.sort="desc";state.search="";state.ownership="";state.newFilter="";state.oshiOnly=false;savePreferences();
+        $("searchInput").value="";$("categoryFilter").value="";$("sortOrder").value="desc";$("ownershipFilter").value="";$("newFilter").value="";$("oshiFilter").value="";
+        renderCollection();
+      };
+      return;
+    }
+    const frag=document.createDocumentFragment();
+    if(state.mode==="all")list.forEach(e=>frag.appendChild(renderAllCard(e)));
+    else{const m=MEMBERS.find(x=>x.id===state.memberId);list.forEach(e=>frag.appendChild(renderMemberCard(e,m)))}
+    $("eventList").appendChild(frag);
+  }
   function renderStats(){
     const ms=scopeMembers(),all=statsFor(ms);
     let years=[...new Set(EVENTS.filter(e=>ms.some(m=>eventAvailableForMember(e,m))).map(yearOf))].sort();
@@ -349,6 +378,43 @@ function initializeApp() {
     document.querySelectorAll("[data-wishlist]").forEach(b=>b.onclick=()=>openOshiWishlist(b.dataset.wishlist));
   }
 
+
+  function renderHelp(){
+    $("helpPage").innerHTML=`
+      <div class="page-head"><h2>📖 使い方</h2><p>基本操作とデータを安全に使うための案内です</p></div>
+      <div class="guide-list">
+        <section class="panel guide-card"><span>1</span><div><h3>メンバーを選ぶ</h3><p>TOPからメンバーを選択します。「全メンバー」ではイベント単位でまとめて確認できます。</p></div></section>
+        <section class="panel guide-card"><span>2</span><div><h3>生写真を登録する</h3><p>ヨリ・ヒキ・チュウの「＋」「−」で所持枚数を変更します。♡は欲しい、✍️は直筆です。</p></div></section>
+        <section class="panel guide-card"><span>3</span><div><h3>一覧を絞り込む</h3><p>検索・カテゴリ・新着・所持状況・推しだけ表示を組み合わせられます。選択内容は自動保存されます。</p></div></section>
+        <section class="panel guide-card"><span>4</span><div><h3>未所持・提供可能を確認する</h3><p>未所持一覧はメンバーの五十音順、各メンバー内はイベント順です。2枚目以降は提供可能として表示されます。</p></div></section>
+        <section class="panel guide-card"><span>5</span><div><h3>推しを設定する</h3><p>最推し・推し・気になるの3段階です。TOP優先表示や推しだけの統計・未所持確認に使えます。</p></div></section>
+        <section class="panel guide-card important"><span>6</span><div><h3>定期的にバックアップする</h3><p>端末変更、Safariのデータ削除、ブラウザ変更に備えてJSONを保存してください。復元前には日時と件数を確認できます。</p></div></section>
+        <section class="panel guide-card"><span>7</span><div><h3>iPhoneでアプリ化する</h3><p>Safariの共有ボタンから「ホーム画面に追加」を選択します。一度読み込めばオフラインでも閲覧できます。</p></div></section>
+      </div>`;
+  }
+  function renderAbout(){
+    const active=MEMBERS.filter(m=>!isGraduated(m)).length;
+    const graduated=MEMBERS.filter(isGraduated).length;
+    $("aboutPage").innerHTML=`
+      <div class="page-head"><h2>ℹ️ バージョン情報</h2><p>${esc(APP_CONFIG.appName||"=LOVE 生写真管理")}</p></div>
+      <div class="panel about-hero">
+        <div class="about-version">Ver ${esc(APP_CONFIG.version)}</div>
+        <div class="about-status">完成版・安定版</div>
+        <p>データ更新日：${esc((APP_CONFIG.dataUpdatedAt||"不明").replaceAll("-","/"))}</p>
+      </div>
+      <div class="about-grid">
+        <div class="panel"><b>${EVENTS.length}</b><span>登録イベント</span></div>
+        <div class="panel"><b>${active}</b><span>現役メンバー</span></div>
+        <div class="panel"><b>${graduated}</b><span>卒業メンバー</span></div>
+      </div>
+      <div class="panel about-notes">
+        <h3>Ver1.0の主な機能</h3>
+        <p>所持数・直筆・欲しい・提供可能・統計・未所持・卒業メンバー・推し設定・バックアップ・PWA・オフライン表示に対応しています。</p>
+        <h3>保存について</h3>
+        <p>登録内容はこのブラウザ内に保存されます。別端末へ移す場合は、バックアップ画面からJSONファイルを保存してください。</p>
+      </div>`;
+  }
+
   function backupStats(){
     return {
       counts:Object.keys(state.counts).length,
@@ -369,8 +435,23 @@ function initializeApp() {
         counts:state.counts,
         signs:state.signs,
         wants:state.wants,
-        oshis:state.oshis
-      }
+        oshis:state.oshis,
+        preferences:{
+          memberId:state.memberId,
+          category:state.category,
+          sort:state.sort,
+          search:state.search,
+          ownership:state.ownership,
+          newFilter:state.newFilter,
+          oshiOnly:state.oshiOnly,
+          pageMemberId:state.pageMemberId,
+          missingMemberId:state.missingMemberId,
+          missingPositionId:state.missingPositionId,
+          missingEventOrder:state.missingEventOrder,
+          missingSearch:state.missingSearch
+        }
+      },
+      sourceVersion:APP_CONFIG.version
     };
     const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
     const url=URL.createObjectURL(blob);
@@ -413,7 +494,9 @@ function initializeApp() {
       counts:sanitizeBackupMap(payload.data.counts,"所持"),
       signs:sanitizeBackupMap(payload.data.signs,"直筆"),
       wants:sanitizeBackupMap(payload.data.wants,"欲しい"),
-      oshis:validObject(payload.data.oshis)?Object.fromEntries(Object.entries(payload.data.oshis).filter(([id,rank])=>MEMBERS.some(m=>m.id===id)&&["favorite","oshi","interest"].includes(rank))):{}
+      oshis:validObject(payload.data.oshis)?Object.fromEntries(Object.entries(payload.data.oshis).filter(([id,rank])=>MEMBERS.some(m=>m.id===id)&&["favorite","oshi","interest"].includes(rank))):{},
+      preferences:validObject(payload.data.preferences)?payload.data.preferences:{},
+      sourceVersion:String(payload.sourceVersion||"不明")
     };
   }
   function formatBackupDate(date){
@@ -471,7 +554,7 @@ function initializeApp() {
         pendingBackup=validateBackupPayload(payload);
         preview.innerHTML=`
           <div class="backup-preview-title">✅ バックアップを確認しました</div>
-          <div class="backup-preview-date">作成日時：${formatBackupDate(pendingBackup.exportedAt)}</div>
+          <div class="backup-preview-date">作成日時：${formatBackupDate(pendingBackup.exportedAt)}\n作成元：Ver ${pendingBackup.sourceVersion}</div>
           <div class="backup-preview-counts">
             <span>所持 ${Object.keys(pendingBackup.counts).length}件</span>
             <span>直筆 ${Object.keys(pendingBackup.signs).length}件</span>
@@ -500,12 +583,13 @@ function initializeApp() {
   }
   function restorePendingBackup(){
     if(!pendingBackup)return;
-    const summary=`作成日時：${formatBackupDate(pendingBackup.exportedAt)}\n所持 ${Object.keys(pendingBackup.counts).length}件\n直筆 ${Object.keys(pendingBackup.signs).length}件\n欲しい ${Object.keys(pendingBackup.wants).length}件\n推し設定 ${Object.keys(pendingBackup.oshis||{}).length}人`;
+    const summary=`作成日時：${formatBackupDate(pendingBackup.exportedAt)}\n作成元：Ver ${pendingBackup.sourceVersion}\n所持 ${Object.keys(pendingBackup.counts).length}件\n直筆 ${Object.keys(pendingBackup.signs).length}件\n欲しい ${Object.keys(pendingBackup.wants).length}件\n推し設定 ${Object.keys(pendingBackup.oshis||{}).length}人`;
     if(!confirm(`現在のデータを上書きします。\n\n${summary}\n\n復元しますか？`))return;
     localStorage.setItem(COUNT_KEY,JSON.stringify(pendingBackup.counts));
     localStorage.setItem(SIGN_KEY,JSON.stringify(pendingBackup.signs));
     localStorage.setItem(WANT_KEY,JSON.stringify(pendingBackup.wants));
     localStorage.setItem(OSHI_KEY,JSON.stringify(pendingBackup.oshis||{}));
+    localStorage.setItem(PREF_KEY,JSON.stringify(pendingBackup.preferences||{}));
     alert("復元が完了しました。画面を再読み込みします。");
     location.reload();
   }
@@ -537,7 +621,7 @@ function initializeApp() {
       <div class="panel backup-panel">
         <div class="backup-icon">📤</div>
         <h3>バックアップを保存</h3>
-        <p>現在の所持枚数・直筆・欲しい情報を、1つのJSONファイルに保存します。</p>
+        <p>所持枚数・直筆・欲しい・推し・フィルター設定を、1つのJSONファイルに保存します。</p>
         <button id="exportBackupButton" class="primary-action">バックアップファイルを保存</button>
       </div>
       <div class="panel backup-panel">
@@ -617,11 +701,16 @@ function initializeApp() {
 
 loadAppData().catch(error => {
   console.error(error);
-  document.body.innerHTML = `
-    <main style="padding:24px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif">
-      <h1>読み込みエラー</h1>
-      <p>データファイルを読み込めませんでした。</p>
-      <p>GitHub Pages上で開いているか、ファイル構成をご確認ください。</p>
-    </main>
-  `;
+  const offline=!navigator.onLine;
+  document.body.innerHTML=`
+    <main class="fatal-error">
+      <div class="fatal-error-card">
+        <div class="fatal-error-icon">${offline?"📴":"⚠️"}</div>
+        <h1>${offline?"オフラインデータがありません":"データを読み込めませんでした"}</h1>
+        <p>${offline?"最初の1回は通信できる状態でアプリを開いてください。":"通信状態を確認して、もう一度読み込んでください。"}</p>
+        <details><summary>詳しい情報</summary><code>${String(error.message||error).replaceAll("<","&lt;")}</code></details>
+        <button onclick="location.reload()">もう一度読み込む</button>
+        <a href="./">TOPへ戻る</a>
+      </div>
+    </main>`;
 });
