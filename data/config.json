@@ -1,5 +1,5 @@
 {
-  "version": "0.99",
+  "version": "1.0.0",
   "releaseDate": "2026-07-14",
   "dataVersion": "2026-07-14",
   "newItemCount": 12,
@@ -13,5 +13,8 @@
     "officialUrl",
     "addedDate"
   ],
-  "pwaEnabled": true
+  "pwaEnabled": true,
+  "dataUpdatedAt": "2026-07-14",
+  "appName": "=LOVE 生写真管理",
+  "status": "stable"
 }
