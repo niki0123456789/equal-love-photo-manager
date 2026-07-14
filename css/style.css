@@ -80,3 +80,16 @@ button,input,select{font:inherit}.hidden{display:none!important}.wrap{width:min(
 .member-card.graduated .name{color:#555}
 .member-card.graduated .small{color:#777;line-height:1.45}
 .mini-graduated{display:inline-block;margin-left:6px;padding:2px 6px;border-radius:999px;background:#ececec;color:#777;font-size:9px;font-weight:900;vertical-align:middle}
+
+
+/* Ver0.925 使いやすさ改善 */
+.quick-grid .quick:last-child:nth-child(odd){grid-column:1/-1}
+.member-card{position:relative}
+.last-used{position:absolute;top:10px;right:10px;padding:3px 7px;border-radius:999px;background:rgba(255,255,255,.88);color:#c84f85;font-size:9px;font-weight:900}
+.badge.new-badge{background:linear-gradient(135deg,#ff5f9d,#f68bb5);border-color:#ff5f9d;color:#fff;box-shadow:0 4px 10px rgba(221,70,129,.18)}
+.inline-new{display:inline-block;margin-right:5px;padding:2px 6px;border-radius:999px;background:#f56d9f;color:#fff;font-size:9px;font-weight:900;vertical-align:1px}
+.missing-controls{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:10px 0 14px}
+.missing-search{grid-column:1/-1;margin-top:0}
+.missing-pill{background:#fff0f5;border:1px solid #f0a2bf;color:#cb4c7d}
+.back-to-top{position:fixed;right:16px;bottom:calc(116px + env(safe-area-inset-bottom));z-index:55;width:46px;height:46px;border:0;border-radius:50%;background:var(--accent);color:#fff;font-size:24px;font-weight:900;box-shadow:0 8px 22px rgba(94,61,79,.24);opacity:0;pointer-events:none;transform:translateY(12px);transition:.18s ease}
+.back-to-top.visible{opacity:1;pointer-events:auto;transform:translateY(0)}
