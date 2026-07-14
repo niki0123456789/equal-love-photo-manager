@@ -1,20 +1,20 @@
-# =LOVE 生写真管理 Ver0.9
+# =LOVE 生写真管理 Ver0.925
 
-## 新機能
-TOPページ下部に卒業メンバーを追加し、各メンバーの卒業時点までの生写真だけを表示します。
+## 追加機能
+- 最新12件のNEW表示・NEWのみ表示・NEW優先
+- 全メンバー横断／メンバー別／ヨリ・ヒキ・チュウ別の未所持一覧
+- 年月・楽曲名・ツアー名・コラボ名を対象にした検索
+- フィルター状態と前回選択メンバーの保存
+- 上へ戻るボタン
 
-- 齊藤なぎさ 🍓：2023年1月卒業／sort 149まで
-- 佐竹のん乃 🍅：2021年3月卒業／sort 93まで
-
-## Ver0.85からの更新対象
+## Ver0.9から更新するファイル
 ```text
 index.html
 css/style.css
 js/app.js
-data/members.json
 data/config.json
 CHANGELOG.md
 README.md
 ```
 
-`events.json`と`positions.json`は更新不要です。
+`events.json`、`members.json`、`positions.json`は更新不要です。

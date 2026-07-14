@@ -15,6 +15,7 @@
 <button class="quick" onclick="showPage('stats')"><span>📊</span>統計</button>
 <button class="quick" onclick="showPage('wishlist')"><span>♡</span>欲しい一覧</button>
 <button class="quick" onclick="showPage('trade')"><span>🔄</span>提供可能</button>
+<button class="quick" onclick="showPage('missing')"><span>🔎</span>未所持一覧</button>
 <button class="quick" onclick="showPage('backup')"><span>💾</span>バックアップ</button>
 </div>
 <div id="memberGrid" class="member-grid"></div>
@@ -27,10 +28,10 @@
 
 <section id="managerScreen" class="hidden">
 <header class="topbar"><div class="top-inner"><div class="top-row"><button id="backButton" class="back">← 戻る</button><div class="member-heading"><strong id="memberTitle"></strong><span id="memberSub"></span></div><div style="width:42px"></div></div>
-<div id="managerTools"><div class="searchbox"><span>🔍</span><input id="searchInput" type="search" placeholder="年月・衣装名・公式名称で検索"></div>
+<div id="managerTools"><div class="searchbox"><span>🔍</span><input id="searchInput" type="search" placeholder="年月・楽曲名・ツアー名・コラボ名で検索"></div>
 <div class="filters">
 <select id="categoryFilter"><option value="">すべてのカテゴリ</option><option value="通常">通常</option><option value="イベント">イベント</option><option value="コラボ">コラボ</option></select>
-<select id="sortOrder"><option value="desc">新しい順</option><option value="asc">古い順</option></select>
+<select id="sortOrder"><option value="desc">新しい順</option><option value="new">NEW優先</option><option value="asc">古い順</option></select>
 </div>
 <div class="filters" id="ownershipFilterRow">
 <select id="ownershipFilter">
@@ -38,7 +39,10 @@
 <option value="owned">所持ありのみ</option>
 <option value="unowned">未所持のみ</option>
 </select>
-<div></div>
+<select id="newFilter">
+<option value="">新着：すべて</option>
+<option value="new">NEWのみ</option>
+</select>
 </div>
 </div></div></header>
 <main class="wrap">
@@ -49,6 +53,7 @@
 <section id="statsPage" class="hidden"></section>
 <section id="wishlistPage" class="hidden"></section>
 <section id="tradePage" class="hidden"></section>
+<section id="missingPage" class="hidden"></section>
 <section id="backupPage" class="hidden"></section>
 </main>
 <nav class="bottom-nav">
@@ -59,7 +64,7 @@
 </nav>
 </section>
 
-<div id="versionLabel" class="version-label">Ver 0.9</div>
+<div id="versionLabel" class="version-label">Ver 0.925</div>
 <script src="./js/app.js"></script>
 </body>
 </html>
