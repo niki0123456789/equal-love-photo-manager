@@ -5,10 +5,10 @@ let APP_CONFIG = {};
 
 async function loadAppData() {
   const [eventsResponse, membersResponse, positionsResponse, configResponse] = await Promise.all([
-    fetch("./data/events.json?v=0.98",{cache:"no-store"}),
-    fetch("./data/members.json?v=0.98",{cache:"no-store"}),
-    fetch("./data/positions.json?v=0.98",{cache:"no-store"}),
-    fetch("./data/config.json?v=0.98",{cache:"no-store"})
+    fetch("./data/events.json?v=0.99",{cache:"no-store"}),
+    fetch("./data/members.json?v=0.99",{cache:"no-store"}),
+    fetch("./data/positions.json?v=0.99",{cache:"no-store"}),
+    fetch("./data/config.json?v=0.99",{cache:"no-store"})
   ]);
 
   if (!eventsResponse.ok || !membersResponse.ok || !positionsResponse.ok || !configResponse.ok) {
@@ -45,7 +45,7 @@ async function loadAppData() {
 }
 
 function initializeApp() {
-  const COUNT_KEY="equal-love-photo-manager-counts-v03",SIGN_KEY="equal-love-photo-manager-signatures-v04",WANT_KEY="equal-love-photo-manager-wants-v05";
+  const COUNT_KEY="equal-love-photo-manager-counts-v03",SIGN_KEY="equal-love-photo-manager-signatures-v04",WANT_KEY="equal-love-photo-manager-wants-v05",OSHI_KEY="equal-love-photo-manager-oshi-v099";
   const PREF_KEY="equal-love-photo-manager-preferences-v095";
   const savedPrefs=JSON.parse(localStorage.getItem(PREF_KEY)||"{}");
   const state={
@@ -57,6 +57,7 @@ function initializeApp() {
     search:savedPrefs.search||"",
     ownership:savedPrefs.ownership||"",
     newFilter:savedPrefs.newFilter||"",
+    oshiOnly:savedPrefs.oshiOnly||false,
     pageMemberId:savedPrefs.pageMemberId||"",
     missingMemberId:savedPrefs.missingMemberId||"",
     missingPositionId:savedPrefs.missingPositionId||"",
@@ -65,6 +66,7 @@ function initializeApp() {
     counts:JSON.parse(localStorage.getItem(COUNT_KEY)||"{}"),
     signs:JSON.parse(localStorage.getItem(SIGN_KEY)||"{}"),
     wants:JSON.parse(localStorage.getItem(WANT_KEY)||"{}"),
+    oshis:JSON.parse(localStorage.getItem(OSHI_KEY)||"{}"),
     expanded:{}
   };
   function savePreferences(){
@@ -75,6 +77,7 @@ function initializeApp() {
       search:state.search,
       ownership:state.ownership,
       newFilter:state.newFilter,
+      oshiOnly:state.oshiOnly,
       pageMemberId:state.pageMemberId,
       missingMemberId:state.missingMemberId,
       missingPositionId:state.missingPositionId,
@@ -87,6 +90,17 @@ function initializeApp() {
   function setCount(e,m,p,n){const x=k(e,m,p);if(n<=0)delete state.counts[x];else state.counts[x]=n;localStorage.setItem(COUNT_KEY,JSON.stringify(state.counts))}
   function isSigned(e,m,p){return !!state.signs[k(e,m,p)]} function toggleSign(e,m,p){const x=k(e,m,p);state.signs[x]?delete state.signs[x]:state.signs[x]=true;localStorage.setItem(SIGN_KEY,JSON.stringify(state.signs))}
   function isWanted(e,m,p){return !!state.wants[k(e,m,p)]} function toggleWant(e,m,p){const x=k(e,m,p);state.wants[x]?delete state.wants[x]:state.wants[x]=true;localStorage.setItem(WANT_KEY,JSON.stringify(state.wants))}
+  const OSHI_RANKS={favorite:{label:"最推し",icon:"👑",weight:3},oshi:{label:"推し",icon:"⭐",weight:2},interest:{label:"気になる",icon:"♡",weight:1}};
+  function oshiRank(id){return state.oshis[id]||""}
+  function isOshi(id){return !!oshiRank(id)}
+  function rankedMembers(list=MEMBERS){return [...list].sort((a,b)=>(OSHI_RANKS[oshiRank(b.id)]?.weight||0)-(OSHI_RANKS[oshiRank(a.id)]?.weight||0)||(a.kana||a.name).localeCompare(b.kana||b.name,"ja"))}
+  function setOshiRank(id,rank){
+    if(rank==="favorite")Object.keys(state.oshis).forEach(key=>{if(state.oshis[key]==="favorite")delete state.oshis[key]});
+    if(rank)state.oshis[id]=rank;else delete state.oshis[id];
+    localStorage.setItem(OSHI_KEY,JSON.stringify(state.oshis));
+  }
+  function oshiBadge(m){const rank=OSHI_RANKS[oshiRank(m.id)];return rank?`<span class="oshi-badge rank-${oshiRank(m.id)}">${rank.icon} ${rank.label}</span>`:""}
+
   function esc(v){return String(v||"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;")}
   function yearOf(e){const s=(e.period||e.id||"").match(/20\d{2}/);return s?s[0]:"不明"}
   function normalizeText(value){return String(value||"").toLowerCase().replace(/[\s　・･「」『』（）()【】\-_.]/g,"")}
@@ -110,10 +124,11 @@ function initializeApp() {
     return !isGraduated(m)||Number(e.sort)<=Number(m.maxSort);
   }
   function eligibleEventsForMember(m,events=EVENTS){return events.filter(e=>eventAvailableForMember(e,m))}
-  function eligibleMembersForEvent(e){return MEMBERS.filter(m=>eventAvailableForMember(e,m))}
+  function eligibleMembersForEvent(e){const base=state.oshiOnly?MEMBERS.filter(m=>isOshi(m.id)):MEMBERS;return base.filter(m=>eventAvailableForMember(e,m))}
   function scopeMembers(){
     if(state.page!=="collection"&&state.pageMemberId)return MEMBERS.filter(m=>m.id===state.pageMemberId);
-    return state.mode==="all"?MEMBERS:MEMBERS.filter(m=>m.id===state.memberId);
+    const base=state.mode==="all"?MEMBERS:MEMBERS.filter(m=>m.id===state.memberId);
+    return state.oshiOnly?base.filter(m=>isOshi(m.id)):base;
   }
   function pageMemberOptions(){
     const active=MEMBERS.filter(m=>!isGraduated(m)).map(m=>`<option value="${m.id}" ${state.pageMemberId===m.id?"selected":""}>${m.emoji} ${m.name}</option>`).join("");
@@ -151,8 +166,8 @@ function initializeApp() {
   function openMember(id){state.mode="member";state.memberId=id;state.pageMemberId=id;savePreferences();theme(MEMBERS.find(m=>m.id===id));openManager()}
   function openAll(){state.mode="all";state.memberId=null;state.pageMemberId="";savePreferences();theme(null);openManager()}
   function openManager(){$("homeScreen").classList.add("hidden");$("managerScreen").classList.remove("hidden");$("ownershipFilterRow").classList.toggle("hidden",state.mode==="all");showPage("collection");window.scrollTo(0,0)}
-  function updateHeader(){const m=MEMBERS.find(x=>x.id===state.memberId);$("memberTitle").textContent=state.mode==="all"?"🌈 全メンバー":`${m.emoji} ${m.name}`;const pageLabel=state.page==="collection"?"生写真コレクション":state.page==="stats"?"統計・年代別コンプ率":state.page==="wishlist"?"欲しい生写真一覧":state.page==="trade"?"ダブり・提供可能一覧":state.page==="missing"?"未所持一覧":"バックアップ・復元";$("memberSub").textContent=state.mode==="member"&&isGraduated(m)?`${m.graduation}｜${pageLabel}`:pageLabel}
-  function showPage(page){if($("homeScreen").classList.contains("hidden")===false){state.mode="all";state.memberId=null;theme(null);$("homeScreen").classList.add("hidden");$("managerScreen").classList.remove("hidden")}state.page=page;["collection","stats","wishlist","trade","missing","backup"].forEach(p=>$(p+"Page").classList.toggle("hidden",p!==page));$("managerTools").classList.toggle("hidden",page!=="collection");document.querySelectorAll(".bottom-nav button").forEach(b=>b.classList.toggle("active",b.dataset.page===page));updateHeader();if(page==="collection")renderCollection();if(page==="stats")renderStats();if(page==="wishlist")renderWishlist();if(page==="trade")renderTrade();if(page==="missing")renderMissing();if(page==="backup")renderBackup();window.scrollTo(0,0)}
+  function updateHeader(){const m=MEMBERS.find(x=>x.id===state.memberId);$("memberTitle").textContent=state.mode==="all"?"🌈 全メンバー":`${m.emoji} ${m.name}`;const pageLabel=state.page==="collection"?"生写真コレクション":state.page==="stats"?"統計・年代別コンプ率":state.page==="wishlist"?"欲しい生写真一覧":state.page==="trade"?"ダブり・提供可能一覧":state.page==="missing"?"未所持一覧":state.page==="oshi"?"推しカスタマイズ":"バックアップ・復元";$("memberSub").textContent=state.mode==="member"&&isGraduated(m)?`${m.graduation}｜${pageLabel}`:pageLabel}
+  function showPage(page){if($("homeScreen").classList.contains("hidden")===false){state.mode="all";state.memberId=null;theme(null);$("homeScreen").classList.add("hidden");$("managerScreen").classList.remove("hidden")}state.page=page;["collection","stats","wishlist","trade","missing","oshi","backup"].forEach(p=>$(p+"Page").classList.toggle("hidden",p!==page));$("managerTools").classList.toggle("hidden",page!=="collection");document.querySelectorAll(".bottom-nav button").forEach(b=>b.classList.toggle("active",b.dataset.page===page));updateHeader();if(page==="collection")renderCollection();if(page==="stats")renderStats();if(page==="wishlist")renderWishlist();if(page==="trade")renderTrade();if(page==="missing")renderMissing();if(page==="oshi")renderOshi();if(page==="backup")renderBackup();window.scrollTo(0,0)}
   function statsFor(ms,evs=EVENTS){let total=0,types=0,signed=0,wanted=0,possible=0;ms.forEach(m=>evs.filter(e=>eventAvailableForMember(e,m)).forEach(e=>POSITIONS.forEach(p=>{possible++;const n=getCount(e.id,m.id,p.id);total+=n;if(n>0)types++;if(isSigned(e.id,m.id,p.id))signed++;if(isWanted(e.id,m.id,p.id))wanted++})));return{total,types,signed,wanted,possible,rate:possible?Math.round(types/possible*100):0}}
   function updateSummary(list){const s=statsFor(scopeMembers());$("ownedTotal").textContent=s.total;$("ownedTypes").textContent=s.types;$("signedTotal").textContent=s.signed}
   function complete(e,m){return POSITIONS.every(p=>getCount(e.id,m.id,p.id)>0)}
@@ -166,8 +181,9 @@ function initializeApp() {
     const ms=scopeMembers(),all=statsFor(ms);
     let years=[...new Set(EVENTS.filter(e=>ms.some(m=>eventAvailableForMember(e,m))).map(yearOf))].sort();
     let yearHtml=years.map(y=>{const ev=EVENTS.filter(e=>yearOf(e)===y),s=statsFor(ms,ev);return `<div class="year-row"><div class="year-line"><span>${y}年</span><span>${s.types}/${s.possible}種・${s.rate}%</span></div><div class="bar"><span style="width:${s.rate}%"></span></div></div>`}).join("");
-    $("statsPage").innerHTML=`<div class="page-head"><h2>📊 統計</h2><p>メンバーごとの収集状況を確認できます</p></div><div class="page-filter"><select id="pageMemberFilter">${pageMemberOptions()}</select></div><div class="stat-grid"><div class="big-stat"><b>${all.total}</b><span>総所持枚数</span></div><div class="big-stat"><b>${all.types}</b><span>所持種類数</span></div><div class="big-stat"><b>${all.signed}</b><span>直筆あり</span></div><div class="big-stat"><b>${all.rate}%</b><span>全体コンプ率</span></div></div><div class="panel" style="margin-top:13px"><h3>年代別コンプ率</h3>${yearHtml}</div>`;
+    $("statsPage").innerHTML=`<div class="page-head"><h2>📊 統計</h2><p>メンバーごとの収集状況を確認できます</p></div><div class="page-filter dual-filter"><select id="pageMemberFilter">${pageMemberOptions()}</select><button id="statsOshiToggle" class="oshi-toggle ${state.oshiOnly?"on":""}">👑 推しだけ</button></div><div class="stat-grid"><div class="big-stat"><b>${all.total}</b><span>総所持枚数</span></div><div class="big-stat"><b>${all.types}</b><span>所持種類数</span></div><div class="big-stat"><b>${all.signed}</b><span>直筆あり</span></div><div class="big-stat"><b>${all.rate}%</b><span>全体コンプ率</span></div></div><div class="panel" style="margin-top:13px"><h3>年代別コンプ率</h3>${yearHtml}</div>`;
     bindPageMemberFilter();
+    document.getElementById("statsOshiToggle").onclick=()=>{state.oshiOnly=!state.oshiOnly;savePreferences();renderStats()};
   }
   function groupedWantedItems(){
     const map=new Map();
@@ -230,7 +246,7 @@ function initializeApp() {
   }
   function groupedMissingItems(){
     const q=normalizeText(state.missingSearch);
-    const members=(state.missingMemberId?MEMBERS.filter(m=>m.id===state.missingMemberId):[...MEMBERS])
+    const members=(state.missingMemberId?MEMBERS.filter(m=>m.id===state.missingMemberId):[...MEMBERS]).filter(m=>!state.oshiOnly||isOshi(m.id))
       .sort((a,b)=>(a.kana||a.name).localeCompare(b.kana||b.name,"ja"));
     const positionIds=state.missingPositionId?[state.missingPositionId]:POSITIONS.map(p=>p.id);
     return members.map(m=>{
@@ -251,6 +267,7 @@ function initializeApp() {
       <div class="missing-controls">
         <select id="missingMemberFilter">${missingMemberOptions()}</select>
         <select id="missingPositionFilter">${missingPositionOptions()}</select>
+        <button id="missingOshiToggle" class="oshi-toggle ${state.oshiOnly?"on":""}">👑 推しだけ</button>
         <select id="missingEventOrder">
           <option value="desc" ${state.missingEventOrder==="desc"?"selected":""}>イベント：新しい順</option>
           <option value="asc" ${state.missingEventOrder==="asc"?"selected":""}>イベント：古い順</option>
@@ -273,8 +290,63 @@ function initializeApp() {
         </section>`).join(""):'<div class="empty">条件に該当する未所持データはありません。</div>'}</div>`;
     document.getElementById("missingMemberFilter").onchange=e=>{state.missingMemberId=e.target.value;savePreferences();renderMissing()};
     document.getElementById("missingPositionFilter").onchange=e=>{state.missingPositionId=e.target.value;savePreferences();renderMissing()};
+    document.getElementById("missingOshiToggle").onclick=()=>{state.oshiOnly=!state.oshiOnly;savePreferences();renderMissing()};
     document.getElementById("missingEventOrder").onchange=e=>{state.missingEventOrder=e.target.value;savePreferences();renderMissing()};
     document.getElementById("missingSearchInput").oninput=e=>{state.missingSearch=e.target.value;savePreferences();renderMissing()};
+  }
+
+
+  function memberOshiStats(m){
+    const s=statsFor([m]);
+    return {...s,missing:Math.max(0,s.possible-s.types)};
+  }
+  function openOshiMissing(id){
+    state.missingMemberId=id;
+    state.oshiOnly=false;
+    savePreferences();
+    showPage("missing");
+  }
+  function openOshiWishlist(id){
+    state.pageMemberId=id;
+    state.oshiOnly=false;
+    savePreferences();
+    showPage("wishlist");
+  }
+  function renderOshi(){
+    const ordered=rankedMembers(MEMBERS);
+    const selected=ordered.filter(m=>isOshi(m.id));
+    const cards=ordered.map(m=>{
+      const s=memberOshiStats(m),rank=oshiRank(m.id);
+      return `<div class="oshi-setting-card ${rank?`selected rank-${rank}`:""}" style="--member-accent:${m.accent};--member-soft:${m.soft}">
+        <div class="oshi-setting-main">
+          <div class="oshi-setting-name">${m.emoji} <b>${m.name}</b>${isGraduated(m)?'<span class="mini-graduated">卒業</span>':''}${oshiBadge(m)}</div>
+          <select class="oshi-rank-select" data-member="${m.id}">
+            <option value="" ${!rank?"selected":""}>設定なし</option>
+            <option value="favorite" ${rank==="favorite"?"selected":""}>👑 最推し</option>
+            <option value="oshi" ${rank==="oshi"?"selected":""}>⭐ 推し</option>
+            <option value="interest" ${rank==="interest"?"selected":""}>♡ 気になる</option>
+          </select>
+        </div>
+        <div class="oshi-mini-stats"><span><b>${s.rate}%</b>コンプ率</span><span><b>${s.missing}</b>未所持</span><span><b>${s.signed}</b>直筆</span></div>
+        <div class="member-rate-bar"><i style="width:${s.rate}%;background:${m.accent}"></i></div>
+      </div>`;
+    }).join("");
+    const focus=selected.map(m=>{
+      const s=memberOshiStats(m),rank=OSHI_RANKS[oshiRank(m.id)];
+      return `<article class="oshi-focus-card ${s.rate===100?"complete-oshi":""}" style="--member-accent:${m.accent};--member-soft:${m.soft}">
+        ${s.rate===100?'<div class="oshi-celebrate">🎉 推しメンコンプリート！</div>':""}
+        <div class="oshi-focus-head"><span class="oshi-focus-emoji">${m.emoji}</span><div><span>${rank.icon} ${rank.label}</span><h3>${m.name}</h3></div><b>${s.rate}%</b></div>
+        <div class="oshi-focus-stats"><span>所持 <b>${s.total}枚</b></span><span>未所持 <b>${s.missing}種</b></span><span>直筆 <b>${s.signed}種</b></span></div>
+        <div class="oshi-actions"><button data-missing="${m.id}">未所持を見る</button><button data-wishlist="${m.id}">欲しい一覧</button></div>
+      </article>`;
+    }).join("");
+    $("oshiPage").innerHTML=`
+      <div class="page-head"><h2>👑 推しカスタマイズ</h2><p>最推しは1人、推し・気になるは複数設定できます</p></div>
+      ${selected.length?`<div class="oshi-focus-list">${focus}</div>`:'<div class="oshi-empty">メンバーを選んで推し設定してみよう！</div>'}
+      <div class="panel oshi-settings-panel"><h3>推しランク設定</h3><p>設定したメンバーはTOPで優先表示され、バックアップにも保存されます。</p><div class="oshi-settings-list">${cards}</div></div>`;
+    document.querySelectorAll(".oshi-rank-select").forEach(select=>select.onchange=e=>{setOshiRank(e.target.dataset.member,e.target.value);renderOshi();renderHomeMembers()});
+    document.querySelectorAll("[data-missing]").forEach(b=>b.onclick=()=>openOshiMissing(b.dataset.missing));
+    document.querySelectorAll("[data-wishlist]").forEach(b=>b.onclick=()=>openOshiWishlist(b.dataset.wishlist));
   }
 
   function backupStats(){
@@ -296,7 +368,8 @@ function initializeApp() {
       data:{
         counts:state.counts,
         signs:state.signs,
-        wants:state.wants
+        wants:state.wants,
+        oshis:state.oshis
       }
     };
     const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
@@ -339,7 +412,8 @@ function initializeApp() {
       exportedAt:new Date(payload.exportedAt),
       counts:sanitizeBackupMap(payload.data.counts,"所持"),
       signs:sanitizeBackupMap(payload.data.signs,"直筆"),
-      wants:sanitizeBackupMap(payload.data.wants,"欲しい")
+      wants:sanitizeBackupMap(payload.data.wants,"欲しい"),
+      oshis:validObject(payload.data.oshis)?Object.fromEntries(Object.entries(payload.data.oshis).filter(([id,rank])=>MEMBERS.some(m=>m.id===id)&&["favorite","oshi","interest"].includes(rank))):{}
     };
   }
   function formatBackupDate(date){
@@ -401,7 +475,7 @@ function initializeApp() {
           <div class="backup-preview-counts">
             <span>所持 ${Object.keys(pendingBackup.counts).length}件</span>
             <span>直筆 ${Object.keys(pendingBackup.signs).length}件</span>
-            <span>欲しい ${Object.keys(pendingBackup.wants).length}件</span>
+            <span>欲しい ${Object.keys(pendingBackup.wants).length}件</span><span>推し ${Object.keys(pendingBackup.oshis||{}).length}人</span>
           </div>
           <button id="restoreBackupButton" class="primary-action">このバックアップを復元</button>`;
         preview.className="backup-preview valid";
@@ -426,11 +500,12 @@ function initializeApp() {
   }
   function restorePendingBackup(){
     if(!pendingBackup)return;
-    const summary=`作成日時：${formatBackupDate(pendingBackup.exportedAt)}\n所持 ${Object.keys(pendingBackup.counts).length}件\n直筆 ${Object.keys(pendingBackup.signs).length}件\n欲しい ${Object.keys(pendingBackup.wants).length}件`;
+    const summary=`作成日時：${formatBackupDate(pendingBackup.exportedAt)}\n所持 ${Object.keys(pendingBackup.counts).length}件\n直筆 ${Object.keys(pendingBackup.signs).length}件\n欲しい ${Object.keys(pendingBackup.wants).length}件\n推し設定 ${Object.keys(pendingBackup.oshis||{}).length}人`;
     if(!confirm(`現在のデータを上書きします。\n\n${summary}\n\n復元しますか？`))return;
     localStorage.setItem(COUNT_KEY,JSON.stringify(pendingBackup.counts));
     localStorage.setItem(SIGN_KEY,JSON.stringify(pendingBackup.signs));
     localStorage.setItem(WANT_KEY,JSON.stringify(pendingBackup.wants));
+    localStorage.setItem(OSHI_KEY,JSON.stringify(pendingBackup.oshis||{}));
     alert("復元が完了しました。画面を再読み込みします。");
     location.reload();
   }
@@ -442,7 +517,7 @@ function initializeApp() {
       if(msg){msg.textContent="入力が一致しなかったため、削除を中止しました。";msg.className="backup-message error"}
       return;
     }
-    [COUNT_KEY,SIGN_KEY,WANT_KEY,PREF_KEY].forEach(key=>localStorage.removeItem(key));
+    [COUNT_KEY,SIGN_KEY,WANT_KEY,OSHI_KEY,PREF_KEY].forEach(key=>localStorage.removeItem(key));
     alert("すべての保存データを削除しました。画面を再読み込みします。");
     location.reload();
   }
@@ -495,30 +570,37 @@ function initializeApp() {
 
   function createMemberButton(m){
     const b=document.createElement("button");
-    b.className=`member-card${isGraduated(m)?" graduated":""}`;
+    const rank=oshiRank(m.id);b.className=`member-card${isGraduated(m)?" graduated":""}${rank?` oshi-card rank-${rank}`:""}`;
     b.style.background=isGraduated(m)?"linear-gradient(135deg,#d8d8d8,#fff)":`linear-gradient(135deg,${m.soft},rgba(255,255,255,.88))`;
     b.style.setProperty("--card-accent",m.accent);
     b.style.setProperty("--card-soft",m.soft);
     b.style.borderColor=isGraduated(m)?"rgba(255,255,255,.82)":`${m.accent}66`;
     const memberStats=statsFor([m]);
-    b.innerHTML=`${state.memberId===m.id?'<span class="last-used">前回</span>':''}<span class="emoji">${m.emoji}</span><span class="name">${m.name}</span><span class="small">${isGraduated(m)?`${m.graduation}｜`:""}所持：${memberTotal(m.id)}枚</span><span class="member-rate-line"><span>コンプ率</span><b>${memberStats.rate}%</b></span><span class="member-rate-bar"><i style="width:${memberStats.rate}%"></i></span>`;
+    b.innerHTML=`${oshiBadge(m)}${state.memberId===m.id?'<span class="last-used">前回</span>':''}<span class="emoji">${m.emoji}</span><span class="name">${m.name}</span><span class="small">${isGraduated(m)?`${m.graduation}｜`:""}所持：${memberTotal(m.id)}枚</span><span class="member-rate-line"><span>コンプ率</span><b>${memberStats.rate}%</b></span><span class="member-rate-bar"><i style="width:${memberStats.rate}%"></i></span>`;
     b.onclick=()=>openMember(m.id);
     return b;
   }
-  MEMBERS.filter(m=>!isGraduated(m)).forEach(m=>$("memberGrid").appendChild(createMemberButton(m)));
-  const all=document.createElement("button");all.className="member-card all";all.innerHTML=`<span class="emoji">🌈</span><span><span class="name">全メンバー</span><span class="small">イベントごとに対象メンバー分をまとめて管理</span></span>`;all.onclick=openAll;$("memberGrid").appendChild(all);
-  MEMBERS.filter(isGraduated).forEach(m=>$("graduatedMemberGrid").appendChild(createMemberButton(m)));
+  function renderHomeMembers(){
+    $("memberGrid").innerHTML="";
+    $("graduatedMemberGrid").innerHTML="";
+    rankedMembers(MEMBERS.filter(m=>!isGraduated(m))).forEach(m=>$("memberGrid").appendChild(createMemberButton(m)));
+    const all=document.createElement("button");all.className="member-card all";all.innerHTML=`<span class="emoji">🌈</span><span><span class="name">全メンバー</span><span class="small">イベントごとに対象メンバー分をまとめて管理</span></span>`;all.onclick=openAll;$("memberGrid").appendChild(all);
+    rankedMembers(MEMBERS.filter(isGraduated)).forEach(m=>$("graduatedMemberGrid").appendChild(createMemberButton(m)));
+  }
+  renderHomeMembers();
   $("searchInput").value=state.search;
   $("categoryFilter").value=state.category;
   $("sortOrder").value=state.sort;
   $("ownershipFilter").value=state.ownership;
   $("newFilter").value=state.newFilter;
+  $("oshiFilter").value=state.oshiOnly?"oshi":"";
   $("backButton").onclick=()=>{$("managerScreen").classList.add("hidden");$("homeScreen").classList.remove("hidden");window.scrollTo(0,0)};
   $("searchInput").oninput=e=>{state.search=e.target.value;savePreferences();renderCollection()};
   $("categoryFilter").onchange=e=>{state.category=e.target.value;savePreferences();renderCollection()};
   $("sortOrder").onchange=e=>{state.sort=e.target.value;savePreferences();renderCollection()};
   $("ownershipFilter").onchange=e=>{state.ownership=e.target.value;savePreferences();renderCollection()};
   $("newFilter").onchange=e=>{state.newFilter=e.target.value;savePreferences();renderCollection()};
+  $("oshiFilter").onchange=e=>{state.oshiOnly=e.target.value==="oshi";savePreferences();renderCollection()};
   document.querySelectorAll(".bottom-nav button").forEach(b=>b.onclick=()=>showPage(b.dataset.page));
   const topButton=document.createElement("button");
   topButton.id="backToTop";
