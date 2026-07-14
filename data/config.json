@@ -1,6 +1,16 @@
 {
-  "version": "0.925",
+  "version": "0.95",
   "releaseDate": "2026-07-14",
   "dataVersion": "2026-07-14",
-  "newItemCount": 12
+  "newItemCount": 12,
+  "requiredEventFields": [
+    "officialName",
+    "id",
+    "sort",
+    "category",
+    "period",
+    "work",
+    "officialUrl",
+    "addedDate"
+  ]
 }
