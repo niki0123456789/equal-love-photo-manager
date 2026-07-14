@@ -3,9 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#f7a8c8">
+<meta name="theme-color" content="#ef7fad">
+<meta name="application-name" content="=LOVE 生写真管理">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="生写真管理">
+<link rel="manifest" href="./manifest.webmanifest?v=0.96">
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=0.96">
 <title>=LOVE 生写真管理</title>
-<link rel="stylesheet" href="./css/style.css">
+<link rel="stylesheet" href="./css/style.css?v=0.96">
 </head>
 <body>
 <section id="homeScreen" class="home">
@@ -64,7 +70,56 @@
 </nav>
 </section>
 
-<div id="versionLabel" class="version-label">Ver 0.95</div>
-<script src="./js/app.js"></script>
+<div id="updateBanner" class="update-banner hidden">
+  <div><b>新しいバージョンがあります</b><span>最新版を反映するため再読み込みしてください。</span></div>
+  <button id="applyUpdateButton">更新する</button>
+</div>
+<div id="offlineBanner" class="offline-banner hidden">オフラインで表示しています</div>
+<div id="versionLabel" class="version-label">Ver 0.96</div>
+<script src="./js/app.js?v=0.96"></script>
+<script>
+(() => {
+  const updateBanner = document.getElementById("updateBanner");
+  const updateButton = document.getElementById("applyUpdateButton");
+  const offlineBanner = document.getElementById("offlineBanner");
+
+  const updateOnlineStatus = () => {
+    offlineBanner.classList.toggle("hidden", navigator.onLine);
+  };
+  window.addEventListener("online", updateOnlineStatus);
+  window.addEventListener("offline", updateOnlineStatus);
+  updateOnlineStatus();
+
+  if (!("serviceWorker" in navigator)) return;
+
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (refreshing) return;
+    refreshing = true;
+    location.reload();
+  });
+
+  window.addEventListener("load", async () => {
+    try {
+      const registration = await navigator.serviceWorker.register("./service-worker.js?v=0.96", {scope: "./"});
+      const showUpdate = worker => {
+        if (!worker) return;
+        updateBanner.classList.remove("hidden");
+        updateButton.onclick = () => worker.postMessage({type: "SKIP_WAITING"});
+      };
+      if (registration.waiting) showUpdate(registration.waiting);
+      registration.addEventListener("updatefound", () => {
+        const worker = registration.installing;
+        worker?.addEventListener("statechange", () => {
+          if (worker.state === "installed" && navigator.serviceWorker.controller) showUpdate(worker);
+        });
+      });
+      registration.update();
+    } catch (error) {
+      console.error("Service Worker registration failed:", error);
+    }
+  });
+})();
+</script>
 </body>
 </html>

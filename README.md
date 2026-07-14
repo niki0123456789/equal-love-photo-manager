@@ -1,38 +1,28 @@
-# =LOVE 生写真管理 Ver0.95
+# =LOVE 生写真管理 Ver0.96
 
-## データ管理機能
-- バックアップ選択時に形式・値・作成日時を自動確認
-- 復元前に作成日時と所持／直筆／欲しい件数を表示
-- 2段階確認付きの保存データ全削除
-- `events.json`の全イベントに`addedDate`を追加
-- `members.json`の`includeEventIds`／`excludeEventIds`で表示例外を設定
-- バックアップ画面でデータ不備を自動確認
+## PWA機能
+- iPhoneのSafariで共有ボタンから「ホーム画面に追加」
+- ホーム画面に専用アイコンを表示
+- ホーム画面から起動するとブラウザの枠を省いたアプリ表示
+- 一度オンラインで開けば、通信がない状態でも閲覧可能
+- 新版が公開された場合は画面内に更新案内を表示
 
-## 卒業メンバーの例外設定
-卒業後発売の商品を表示する場合：
+## キャッシュ更新
+CSS・JavaScript・JSONはVer0.96のURLで読み込み、Service Workerのキャッシュ名もバージョンごとに変更しています。
 
-```json
-"includeEventIds": ["2026-07-02"]
-```
-
-対象期間内の商品を個別に非表示にする場合：
-
-```json
-"excludeEventIds": ["2021-02-01"]
-```
-
-`excludeEventIds`が優先されます。同じIDを両方に入れるとエラー表示されます。
-
-## Ver0.925から更新するファイル
+## Ver0.95から更新するファイル
 ```text
 index.html
 css/style.css
 js/app.js
-data/events.json
-data/members.json
 data/config.json
+manifest.webmanifest
+service-worker.js
+icons/icon-192.png
+icons/icon-512.png
+icons/apple-touch-icon.png
 CHANGELOG.md
 README.md
 ```
 
-`positions.json`は更新不要です。
+`events.json`、`members.json`、`positions.json`は更新不要です。

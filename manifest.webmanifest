@@ -1,0 +1,26 @@
+{
+  "name": "=LOVE 生写真管理",
+  "short_name": "生写真管理",
+  "description": "=LOVEの生写真コレクションを管理するアプリ",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f7a8c8",
+  "theme_color": "#ef7fad",
+  "orientation": "portrait-primary",
+  "lang": "ja",
+  "icons": [
+    {
+      "src": "./icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
