@@ -1,14 +1,14 @@
-const CACHE_NAME = "equal-love-photo-manager-v099";
+const CACHE_NAME = "equal-love-photo-manager-v100";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./css/style.css?v=0.99",
-  "./js/app.js?v=0.99",
-  "./data/events.json?v=0.99",
-  "./data/members.json?v=0.99",
-  "./data/positions.json?v=0.99",
-  "./data/config.json?v=0.99",
-  "./manifest.webmanifest?v=0.99",
+  "./css/style.css?v=1.0.0",
+  "./js/app.js?v=1.0.0",
+  "./data/events.json?v=1.0.0",
+  "./data/members.json?v=1.0.0",
+  "./data/positions.json?v=1.0.0",
+  "./data/config.json?v=1.0.0",
+  "./manifest.webmanifest?v=1.0.0",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
   "./icons/apple-touch-icon.png"

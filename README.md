@@ -1,32 +1,57 @@
-# =LOVE 生写真管理 Ver0.99
+# =LOVE 生写真管理 Ver1.0.0
 
-## 推しカスタマイズ
-- 👑 最推し：1人
-- ⭐ 推し：複数
-- ♡ 気になる：複数
-- TOPで推しを優先表示
-- 推し専用のコンプ率・未所持・直筆表示
-- 推しだけ表示フィルター
-- 未所持／欲しい一覧へのショートカット
-- 100%コンプリートのお祝い表示
-- 推し設定のバックアップ・復元
+スマートフォンで使える、=LOVE生写真コレクション管理Webアプリです。
 
-## Ver0.98から更新するファイル
+## 主な機能
+
+- メンバー別／全メンバーの所持枚数管理
+- ヨリ・ヒキ・チュウの登録
+- 直筆・欲しい・提供可能一覧
+- 未所持一覧、コンプ率、年代別統計
+- 現役メンバー／卒業メンバー対応
+- 最推し・推し・気になる設定
+- JSONバックアップ・復元
+- データ不備チェック
+- PWA・ホーム画面追加・オフライン閲覧
+- 更新通知、データ更新日、使い方、バージョン情報
+
+## iPhoneでアプリとして使う
+
+1. SafariでGitHub Pagesを開く
+2. 共有ボタンを押す
+3. 「ホーム画面に追加」を選ぶ
+4. ホーム画面のアイコンから起動する
+
+## データ保存
+
+所持枚数などはブラウザ内に保存されます。端末変更やSafariデータ削除に備えて、バックアップ画面から定期的にJSONを保存してください。
+
+## ファイル構成
+
+```text
+index.html
+manifest.webmanifest
+service-worker.js
+css/style.css
+js/app.js
+data/events.json
+data/members.json
+data/positions.json
+data/config.json
+icons/
+```
+
+## Ver0.99から更新するファイル
+
 ```text
 index.html
 css/style.css
 js/app.js
 data/config.json
+manifest.webmanifest
 service-worker.js
 CHANGELOG.md
 README.md
 ```
 
-更新不要：
-```text
-data/events.json
-data/members.json
-data/positions.json
-manifest.webmanifest
-iconsフォルダ内の3ファイル
-```
+`events.json`、`members.json`、`positions.json`、`icons`内の画像は更新不要です。
