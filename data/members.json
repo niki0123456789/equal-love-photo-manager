@@ -7,7 +7,8 @@
     "soft": "#E7D6F6",
     "status": "active",
     "includeEventIds": [],
-    "excludeEventIds": []
+    "excludeEventIds": [],
+    "kana": "おおたにえみり"
   },
   {
     "id": "hana",
@@ -17,7 +18,8 @@
     "soft": "#FFD9B8",
     "status": "active",
     "includeEventIds": [],
-    "excludeEventIds": []
+    "excludeEventIds": [],
+    "kana": "おおばはな"
   },
   {
     "id": "risa",
@@ -27,7 +29,8 @@
     "soft": "#CDEFFA",
     "status": "active",
     "includeEventIds": [],
-    "excludeEventIds": []
+    "excludeEventIds": [],
+    "kana": "おとしまりさ"
   },
   {
     "id": "kiara",
@@ -37,7 +40,8 @@
     "soft": "#FAD1E2",
     "status": "active",
     "includeEventIds": [],
-    "excludeEventIds": []
+    "excludeEventIds": [],
+    "kana": "さいとうきあら"
   },
   {
     "id": "maika",
@@ -47,7 +51,8 @@
     "soft": "#E9E9E9",
     "status": "active",
     "includeEventIds": [],
-    "excludeEventIds": []
+    "excludeEventIds": [],
+    "kana": "ささきまいか"
   },
   {
     "id": "hitomi",
@@ -57,7 +62,8 @@
     "soft": "#F8CACA",
     "status": "active",
     "includeEventIds": [],
-    "excludeEventIds": []
+    "excludeEventIds": [],
+    "kana": "たかまつひとみ"
   },
   {
     "id": "shoko",
@@ -67,7 +73,8 @@
     "soft": "#F8E7A1",
     "status": "active",
     "includeEventIds": [],
-    "excludeEventIds": []
+    "excludeEventIds": [],
+    "kana": "たきわきしょうこ"
   },
   {
     "id": "iori",
@@ -77,7 +84,8 @@
     "soft": "#DDCBF1",
     "status": "active",
     "includeEventIds": [],
-    "excludeEventIds": []
+    "excludeEventIds": [],
+    "kana": "のぐちいおり"
   },
   {
     "id": "sana",
@@ -87,7 +95,8 @@
     "soft": "#CDE8D2",
     "status": "active",
     "includeEventIds": [],
-    "excludeEventIds": []
+    "excludeEventIds": [],
+    "kana": "もろはしさな"
   },
   {
     "id": "anna",
@@ -97,7 +106,8 @@
     "soft": "#CCDDF7",
     "status": "active",
     "includeEventIds": [],
-    "excludeEventIds": []
+    "excludeEventIds": [],
+    "kana": "やまもとあんな"
   },
   {
     "id": "nagisa",
@@ -109,7 +119,8 @@
     "graduation": "2023年1月卒業",
     "maxSort": 149,
     "includeEventIds": [],
-    "excludeEventIds": []
+    "excludeEventIds": [],
+    "kana": "さいとうなぎさ"
   },
   {
     "id": "nonno",
@@ -121,6 +132,7 @@
     "graduation": "2021年3月卒業",
     "maxSort": 93,
     "includeEventIds": [],
-    "excludeEventIds": []
+    "excludeEventIds": [],
+    "kana": "さたけのんの"
   }
 ]
