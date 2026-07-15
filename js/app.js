@@ -5,10 +5,10 @@ let APP_CONFIG = {};
 
 async function loadAppData() {
   const [eventsResponse, membersResponse, positionsResponse, configResponse] = await Promise.all([
-    fetch("./data/events.json?v=1.0.0",{cache:"no-store"}),
+    fetch("./data/events.json?v=1.0.0-data246",{cache:"no-store"}),
     fetch("./data/members.json?v=1.0.0",{cache:"no-store"}),
     fetch("./data/positions.json?v=1.0.0-orderfix",{cache:"no-store"}),
-    fetch("./data/config.json?v=1.0.0",{cache:"no-store"})
+    fetch("./data/config.json?v=1.0.0-data246",{cache:"no-store"})
   ]);
 
   if (!eventsResponse.ok || !membersResponse.ok || !positionsResponse.ok || !configResponse.ok) {
