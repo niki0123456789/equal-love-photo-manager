@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "releaseDate": "2026-07-14",
-  "dataVersion": "2026-07-16",
+  "dataVersion": "2026-07-16.1",
   "newItemCount": 12,
   "requiredEventFields": [
     "officialName",
