@@ -11,7 +11,7 @@
 <link rel="manifest" href="./manifest.webmanifest?v=1.0.0">
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=1.0.0">
 <title>=LOVE 生写真管理</title>
-<link rel="stylesheet" href="./css/style.css?v=1.0.0-data246-urlfix">
+<link rel="stylesheet" href="./css/style.css?v=1.01-yearfilter">
 </head>
 <body>
 <section id="homeScreen" class="home dashboard-home">
@@ -92,8 +92,9 @@
 <section id="managerScreen" class="hidden">
 <header class="topbar"><div class="top-inner"><div class="top-row"><button id="backButton" class="back">← 戻る</button><div class="member-heading"><strong id="memberTitle"></strong><span id="memberSub"></span></div><div style="width:42px"></div></div>
 <div id="managerTools"><div class="searchbox"><span>🔍</span><input id="searchInput" type="search" placeholder="年月・楽曲名・ツアー名・コラボ名で検索"></div>
-<div class="filters">
+<div class="filters collection-main-filters">
 <select id="categoryFilter"><option value="">すべてのカテゴリ</option><option value="通常">通常</option><option value="イベント">イベント</option><option value="コラボ">コラボ</option></select>
+<select id="yearFilter" aria-label="年代で絞り込む"><option value="">すべての年代</option></select>
 <select id="sortOrder"><option value="desc">新しい順</option><option value="new">NEW優先</option><option value="asc">古い順</option></select>
 </div>
 <div class="filters" id="ownershipFilterRow">
@@ -139,8 +140,8 @@
   <button id="applyUpdateButton">更新する</button>
 </div>
 <div id="offlineBanner" class="offline-banner hidden">オフラインで表示しています</div>
-<div id="versionLabel" class="version-label">Ver 1.0.0</div>
-<script src="./js/app.js?v=1.0.0-data246-urlfix"></script>
+<div id="versionLabel" class="version-label">Ver 1.01</div>
+<script src="./js/app.js?v=1.01-yearfilter"></script>
 <script>
 (() => {
   const updateBanner = document.getElementById("updateBanner");
@@ -165,7 +166,7 @@
 
   window.addEventListener("load", async () => {
     try {
-      const registration = await navigator.serviceWorker.register("./service-worker.js?v=1.0.0-data246-urlfix", {scope: "./"});
+      const registration = await navigator.serviceWorker.register("./service-worker.js?v=1.01-yearfilter", {scope: "./"});
       const showUpdate = worker => {
         if (!worker) return;
         updateBanner.classList.remove("hidden");

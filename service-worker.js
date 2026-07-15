@@ -1,13 +1,13 @@
-const CACHE_NAME = "equal-love-photo-manager-v100-data246-urlfix";
+const CACHE_NAME = "equal-love-photo-manager-v101-yearfilter";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./css/style.css?v=1.0.0-data246-urlfix",
-  "./js/app.js?v=1.0.0-data246-urlfix",
-  "./data/events.json?v=1.0.0-data246-urlfix",
+  "./css/style.css?v=1.01-yearfilter",
+  "./js/app.js?v=1.01-yearfilter",
+  "./data/events.json?v=1.01-yearfilter",
   "./data/members.json?v=1.0.0",
   "./data/positions.json?v=1.0.0-orderfix",
-  "./data/config.json?v=1.0.0-data246-urlfix",
+  "./data/config.json?v=1.01-yearfilter",
   "./manifest.webmanifest?v=1.0.0",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
