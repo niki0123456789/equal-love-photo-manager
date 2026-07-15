@@ -175,8 +175,39 @@ function initializeApp() {
       });
   }
   function theme(m){document.documentElement.style.setProperty("--accent",m?.accent||"#ef7fad");document.documentElement.style.setProperty("--soft",m?.soft||"#fff0f6");document.documentElement.style.setProperty("--page",m?.soft||"#fff8fb")}
-  function openMember(id){state.mode="member";state.memberId=id;state.pageMemberId=id;savePreferences();theme(MEMBERS.find(m=>m.id===id));openManager()}
-  function openAll(){state.mode="all";state.memberId=null;state.pageMemberId="";savePreferences();theme(null);openManager()}
+    function openMemberSelector(){
+    const overlay=$("memberSelectorOverlay");
+    overlay.classList.remove("hidden");
+    overlay.setAttribute("aria-hidden","false");
+    document.body.classList.add("selector-open");
+  }
+  function closeMemberSelector(){
+    const overlay=$("memberSelectorOverlay");
+    if(!overlay)return;
+    overlay.classList.add("hidden");
+    overlay.setAttribute("aria-hidden","true");
+    document.body.classList.remove("selector-open");
+  }
+function openMember(id){
+    closeMemberSelector();
+    state.mode="member";
+    state.memberId=id;
+    state.pageMemberId=id;
+    savePreferences();
+    theme(MEMBERS.find(m=>m.id===id));
+    openManager();
+  }
+  function openAll(){
+    state.mode="all";
+    state.memberId=null;
+    state.pageMemberId="";
+    state.oshiOnly=false;
+    savePreferences();
+    theme(null);
+    openManager();
+    const filter=document.getElementById("oshiFilter");
+    if(filter)filter.value="";
+  }
   function openManager(){$("homeScreen").classList.add("hidden");$("managerScreen").classList.remove("hidden");$("ownershipFilterRow").classList.toggle("hidden",state.mode==="all");showPage("collection");window.scrollTo(0,0)}
   function updateHeader(){const m=MEMBERS.find(x=>x.id===state.memberId);$("memberTitle").textContent=state.mode==="all"?"🌈 全メンバー":`${m.emoji} ${m.name}`;const pageLabel=state.page==="collection"?"生写真コレクション":state.page==="stats"?"統計・年代別コンプ率":state.page==="wishlist"?"欲しい生写真一覧":state.page==="trade"?"ダブり・提供可能一覧":state.page==="missing"?"未所持一覧":state.page==="oshi"?"推しカスタマイズ":state.page==="help"?"使い方":state.page==="about"?"バージョン情報":"バックアップ・復元";$("memberSub").textContent=state.mode==="member"&&isGraduated(m)?`${m.graduation}｜${pageLabel}`:pageLabel}
   function showPage(page){if($("homeScreen").classList.contains("hidden")===false){state.mode="all";state.memberId=null;theme(null);$("homeScreen").classList.add("hidden");$("managerScreen").classList.remove("hidden")}state.page=page;["collection","stats","wishlist","trade","missing","oshi","backup","help","about"].forEach(p=>$(p+"Page").classList.toggle("hidden",p!==page));$("managerTools").classList.toggle("hidden",page!=="collection");document.querySelectorAll(".bottom-nav button").forEach(b=>b.classList.toggle("active",b.dataset.page===page));updateHeader();if(page==="collection")renderCollection();if(page==="stats")renderStats();if(page==="wishlist")renderWishlist();if(page==="trade")renderTrade();if(page==="missing")renderMissing();if(page==="oshi")renderOshi();if(page==="backup")renderBackup();if(page==="help")renderHelp();if(page==="about")renderAbout();window.scrollTo(0,0)}
@@ -668,10 +699,14 @@ function initializeApp() {
     $("memberGrid").innerHTML="";
     $("graduatedMemberGrid").innerHTML="";
     rankedMembers(MEMBERS.filter(m=>!isGraduated(m))).forEach(m=>$("memberGrid").appendChild(createMemberButton(m)));
-    const all=document.createElement("button");all.className="member-card all";all.innerHTML=`<span class="emoji">🌈</span><span><span class="name">全メンバー</span><span class="small">イベントごとに対象メンバー分をまとめて管理</span></span>`;all.onclick=openAll;$("memberGrid").appendChild(all);
     rankedMembers(MEMBERS.filter(isGraduated)).forEach(m=>$("graduatedMemberGrid").appendChild(createMemberButton(m)));
   }
   renderHomeMembers();
+  $("openMemberSelectorButton").onclick=openMemberSelector;
+  $("closeMemberSelectorButton").onclick=closeMemberSelector;
+  $("allMembersDashboardButton").onclick=openAll;
+  $("memberSelectorOverlay").onclick=e=>{if(e.target===$("memberSelectorOverlay"))closeMemberSelector()};
+  document.addEventListener("keydown",e=>{if(e.key==="Escape")closeMemberSelector()});
   $("searchInput").value=state.search;
   $("categoryFilter").value=state.category;
   $("sortOrder").value=state.sort;
