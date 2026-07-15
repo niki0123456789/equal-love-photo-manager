@@ -184,6 +184,12 @@ function initializeApp() {
   function closeMemberSelector(){
     const overlay=$("memberSelectorOverlay");
     if(!overlay)return;
+    const sheet=overlay.querySelector(".member-selector-sheet");
+    if(sheet){
+      sheet.classList.remove("swiping");
+      sheet.style.transform="";
+    }
+    overlay.style.background="";
     overlay.classList.add("hidden");
     overlay.setAttribute("aria-hidden","true");
     document.body.classList.remove("selector-open");
@@ -415,7 +421,7 @@ function openMember(id){
       <div class="page-head"><h2>📖 使い方</h2><p>基本操作とデータを安全に使うための案内です</p></div>
       <div class="guide-list">
         <section class="panel guide-card"><span>1</span><div><h3>メンバーを選ぶ</h3><p>TOPからメンバーを選択します。「全メンバー」ではイベント単位でまとめて確認できます。</p></div></section>
-        <section class="panel guide-card"><span>2</span><div><h3>生写真を登録する</h3><p>ヨリ・ヒキ・チュウの「＋」「−」で所持枚数を変更します。♡は欲しい、✍️は直筆です。</p></div></section>
+        <section class="panel guide-card"><span>2</span><div><h3>生写真を登録する</h3><p>ヨリ・チュウ・ヒキの「＋」「−」で所持枚数を変更します。♡は欲しい、✍️は直筆です。</p></div></section>
         <section class="panel guide-card"><span>3</span><div><h3>一覧を絞り込む</h3><p>検索・カテゴリ・新着・所持状況・推しだけ表示を組み合わせられます。選択内容は自動保存されます。</p></div></section>
         <section class="panel guide-card"><span>4</span><div><h3>未所持・提供可能を確認する</h3><p>未所持一覧はメンバーの五十音順、各メンバー内はイベント順です。2枚目以降は提供可能として表示されます。</p></div></section>
         <section class="panel guide-card"><span>5</span><div><h3>推しを設定する</h3><p>最推し・推し・気になるの3段階です。TOP優先表示や推しだけの統計・未所持確認に使えます。</p></div></section>
@@ -706,6 +712,60 @@ function openMember(id){
   $("closeMemberSelectorButton").onclick=closeMemberSelector;
   $("allMembersDashboardButton").onclick=openAll;
   $("memberSelectorOverlay").onclick=e=>{if(e.target===$("memberSelectorOverlay"))closeMemberSelector()};
+
+  const selectorOverlay=$("memberSelectorOverlay");
+  const selectorSheet=selectorOverlay.querySelector(".member-selector-sheet");
+  const selectorBody=selectorOverlay.querySelector(".member-selector-body");
+  let selectorStartY=0;
+  let selectorStartX=0;
+  let selectorDeltaY=0;
+  let selectorSwipeActive=false;
+
+  const resetSelectorSwipe=()=>{
+    selectorSwipeActive=false;
+    selectorDeltaY=0;
+    selectorSheet.classList.remove("swiping");
+    selectorSheet.style.transform="";
+    selectorOverlay.style.background="";
+  };
+
+  selectorSheet.addEventListener("touchstart",e=>{
+    if(e.touches.length!==1||selectorBody.scrollTop>0)return;
+    const touch=e.touches[0];
+    selectorStartY=touch.clientY;
+    selectorStartX=touch.clientX;
+    selectorDeltaY=0;
+    selectorSwipeActive=true;
+  },{passive:true});
+
+  selectorSheet.addEventListener("touchmove",e=>{
+    if(!selectorSwipeActive||e.touches.length!==1)return;
+    const touch=e.touches[0];
+    const deltaY=touch.clientY-selectorStartY;
+    const deltaX=Math.abs(touch.clientX-selectorStartX);
+    if(deltaY<=0||deltaY<deltaX)return;
+    selectorDeltaY=Math.min(deltaY,320);
+    selectorSheet.classList.add("swiping");
+    selectorSheet.style.transform=`translateY(${selectorDeltaY}px)`;
+    const opacity=Math.max(.08,.4-(selectorDeltaY/700));
+    selectorOverlay.style.background=`rgba(55,33,45,${opacity})`;
+    e.preventDefault();
+  },{passive:false});
+
+  selectorSheet.addEventListener("touchend",()=>{
+    if(!selectorSwipeActive)return;
+    if(selectorDeltaY>=90){
+      selectorSheet.style.transform="translateY(110%)";
+      setTimeout(()=>{
+        closeMemberSelector();
+        resetSelectorSwipe();
+      },140);
+    }else{
+      resetSelectorSwipe();
+    }
+  },{passive:true});
+
+  selectorSheet.addEventListener("touchcancel",resetSelectorSwipe,{passive:true});
   document.addEventListener("keydown",e=>{if(e.key==="Escape")closeMemberSelector()});
   $("searchInput").value=state.search;
   $("categoryFilter").value=state.category;
