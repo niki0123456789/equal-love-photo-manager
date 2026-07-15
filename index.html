@@ -11,28 +11,81 @@
 <link rel="manifest" href="./manifest.webmanifest?v=1.0.0">
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=1.0.0">
 <title>=LOVE 生写真管理</title>
-<link rel="stylesheet" href="./css/style.css?v=1.0.0">
+<link rel="stylesheet" href="./css/style.css?v=1.0.0-dashboard">
 </head>
 <body>
-<section id="homeScreen" class="home">
-<div class="wrap">
-<div class="logo"><div class="eyebrow">=LOVE</div><h1>生写真管理</h1><p>メンバーを選択してください</p></div>
-<div class="quick-grid">
-<button class="quick" onclick="showPage('stats')"><span>📊</span>統計</button>
-<button class="quick" onclick="showPage('wishlist')"><span>♡</span>欲しい一覧</button>
-<button class="quick" onclick="showPage('trade')"><span>🔄</span>提供可能</button>
-<button class="quick" onclick="showPage('missing')"><span>🔎</span>未所持一覧</button>
-<button class="quick" onclick="showPage('oshi')"><span>👑</span>推し設定</button>
-<button class="quick" onclick="showPage('backup')"><span>💾</span>バックアップ</button>
-<button class="quick" onclick="showPage('help')"><span>📖</span>使い方</button>
-<button class="quick" onclick="showPage('about')"><span>ℹ️</span>バージョン情報</button>
+<section id="homeScreen" class="home dashboard-home">
+<div class="wrap dashboard-wrap">
+  <div class="logo dashboard-logo">
+    <div class="eyebrow">=LOVE</div>
+    <h1>生写真管理</h1>
+    <p>コレクションをかんたん管理</p>
+  </div>
+
+  <section class="dashboard-section primary-section">
+    <div class="dashboard-section-title">
+      <span>生写真を管理する</span>
+      <small>登録・確認はこちら</small>
+    </div>
+    <div class="manage-actions">
+      <button id="openMemberSelectorButton" class="manage-main-button">
+        <span class="manage-icon">👥</span>
+        <span><b>メンバーを選ぶ</b><small>個人別に所持状況を管理</small></span>
+        <i>›</i>
+      </button>
+      <button id="allMembersDashboardButton" class="manage-sub-button">
+        <span>🌈</span>
+        <span><b>全メンバーを見る</b><small>イベントごとにまとめて確認</small></span>
+      </button>
+    </div>
+  </section>
+
+  <section class="dashboard-section">
+    <div class="dashboard-section-title">
+      <span>便利機能</span>
+      <small>集計・リスト</small>
+    </div>
+    <div class="dashboard-grid">
+      <button class="dashboard-card" onclick="showPage('stats')"><span>📊</span><b>統計</b></button>
+      <button class="dashboard-card" onclick="showPage('wishlist')"><span>♡</span><b>欲しい一覧</b></button>
+      <button class="dashboard-card" onclick="showPage('trade')"><span>🔄</span><b>提供可能</b></button>
+      <button class="dashboard-card" onclick="showPage('missing')"><span>🔎</span><b>未所持一覧</b></button>
+    </div>
+  </section>
+
+  <section class="dashboard-section">
+    <div class="dashboard-section-title">
+      <span>設定・その他</span>
+      <small>カスタマイズ・案内</small>
+    </div>
+    <div class="dashboard-grid">
+      <button class="dashboard-card" onclick="showPage('oshi')"><span>👑</span><b>推し設定</b></button>
+      <button class="dashboard-card" onclick="showPage('backup')"><span>💾</span><b>バックアップ</b></button>
+      <button class="dashboard-card" onclick="showPage('help')"><span>📖</span><b>使い方</b></button>
+      <button class="dashboard-card" onclick="showPage('about')"><span>ℹ️</span><b>バージョン情報</b></button>
+    </div>
+  </section>
+
+  <div id="dataUpdateLabel" class="data-update-label dashboard-update-label">データ更新日：読み込み中</div>
 </div>
-<div id="dataUpdateLabel" class="data-update-label">データ更新日：読み込み中</div>
-<div id="memberGrid" class="member-grid"></div>
-<div class="graduated-section">
-  <div class="section-title"><span>卒業メンバー</span><small>卒業時点までの生写真を表示</small></div>
-  <div id="graduatedMemberGrid" class="member-grid graduated-grid"></div>
-</div>
+
+<div id="memberSelectorOverlay" class="member-selector-overlay hidden" aria-hidden="true">
+  <div class="member-selector-sheet" role="dialog" aria-modal="true" aria-labelledby="memberSelectorTitle">
+    <div class="member-selector-handle"></div>
+    <div class="member-selector-header">
+      <div>
+        <h2 id="memberSelectorTitle">メンバーを選ぶ</h2>
+        <p>所持状況を管理するメンバーを選択してください</p>
+      </div>
+      <button id="closeMemberSelectorButton" class="member-selector-close" aria-label="閉じる">×</button>
+    </div>
+    <div class="member-selector-body">
+      <div class="member-selector-label">現役メンバー</div>
+      <div id="memberGrid" class="member-grid selector-member-grid"></div>
+      <div class="member-selector-label graduated-label">卒業メンバー</div>
+      <div id="graduatedMemberGrid" class="member-grid selector-member-grid graduated-grid"></div>
+    </div>
+  </div>
 </div>
 </section>
 
@@ -87,7 +140,7 @@
 </div>
 <div id="offlineBanner" class="offline-banner hidden">オフラインで表示しています</div>
 <div id="versionLabel" class="version-label">Ver 1.0.0</div>
-<script src="./js/app.js?v=1.0.0-orderfix"></script>
+<script src="./js/app.js?v=1.0.0-dashboard"></script>
 <script>
 (() => {
   const updateBanner = document.getElementById("updateBanner");
@@ -112,7 +165,7 @@
 
   window.addEventListener("load", async () => {
     try {
-      const registration = await navigator.serviceWorker.register("./service-worker.js?v=1.0.0-orderfix", {scope: "./"});
+      const registration = await navigator.serviceWorker.register("./service-worker.js?v=1.0.0-dashboard", {scope: "./"});
       const showUpdate = worker => {
         if (!worker) return;
         updateBanner.classList.remove("hidden");
