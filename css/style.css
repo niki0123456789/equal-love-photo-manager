@@ -492,3 +492,23 @@ body.selector-open{overflow:hidden}
   .manage-main-button b,.manage-sub-button b{font-size:15px}
   .selector-member-grid{gap:8px}
 }
+
+
+/* Ver1.0.0 サイレント更新：メンバー選択シートのスワイプ操作 */
+.member-selector-sheet{
+  touch-action:pan-y;
+  transition:transform .18s ease-out;
+  will-change:transform;
+}
+.member-selector-sheet.swiping{transition:none}
+.swipe-hint{
+  display:inline-block;
+  margin-top:3px;
+  color:#b07b92;
+  font-size:9px;
+  font-weight:800;
+}
+.member-selector-handle{
+  height:6px;
+  background:#cfb5c1;
+}
