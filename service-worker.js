@@ -1,9 +1,9 @@
-const CACHE_NAME = "equal-love-photo-manager-v100-dashboard";
+const CACHE_NAME = "equal-love-photo-manager-v100-swipefix";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./css/style.css?v=1.0.0-dashboard",
-  "./js/app.js?v=1.0.0-dashboard",
+  "./css/style.css?v=1.0.0-swipefix",
+  "./js/app.js?v=1.0.0-swipefix",
   "./data/events.json?v=1.0.0",
   "./data/members.json?v=1.0.0",
   "./data/positions.json?v=1.0.0-orderfix",
