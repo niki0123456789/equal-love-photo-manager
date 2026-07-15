@@ -11,7 +11,7 @@
 <link rel="manifest" href="./manifest.webmanifest?v=1.0.0">
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=1.0.0">
 <title>=LOVE 生写真管理</title>
-<link rel="stylesheet" href="./css/style.css?v=1.0.0-data246">
+<link rel="stylesheet" href="./css/style.css?v=1.0.0-data246-urlfix">
 </head>
 <body>
 <section id="homeScreen" class="home dashboard-home">
@@ -140,7 +140,7 @@
 </div>
 <div id="offlineBanner" class="offline-banner hidden">オフラインで表示しています</div>
 <div id="versionLabel" class="version-label">Ver 1.0.0</div>
-<script src="./js/app.js?v=1.0.0-data246"></script>
+<script src="./js/app.js?v=1.0.0-data246-urlfix"></script>
 <script>
 (() => {
   const updateBanner = document.getElementById("updateBanner");
@@ -165,7 +165,7 @@
 
   window.addEventListener("load", async () => {
     try {
-      const registration = await navigator.serviceWorker.register("./service-worker.js?v=1.0.0-data246", {scope: "./"});
+      const registration = await navigator.serviceWorker.register("./service-worker.js?v=1.0.0-data246-urlfix", {scope: "./"});
       const showUpdate = worker => {
         if (!worker) return;
         updateBanner.classList.remove("hidden");
