@@ -5,10 +5,10 @@ let APP_CONFIG = {};
 
 async function loadAppData() {
   const [eventsResponse, membersResponse, positionsResponse, configResponse] = await Promise.all([
-    fetch("./data/events.json?v=1.0.0-data246-urlfix",{cache:"no-store"}),
+    fetch("./data/events.json?v=1.01-yearfilter",{cache:"no-store"}),
     fetch("./data/members.json?v=1.0.0",{cache:"no-store"}),
     fetch("./data/positions.json?v=1.0.0-orderfix",{cache:"no-store"}),
-    fetch("./data/config.json?v=1.0.0-data246-urlfix",{cache:"no-store"})
+    fetch("./data/config.json?v=1.01-yearfilter",{cache:"no-store"})
   ]);
 
   if (!eventsResponse.ok || !membersResponse.ok || !positionsResponse.ok || !configResponse.ok) {
@@ -65,14 +65,18 @@ function initializeApp() {
     memberId:savedPrefs.memberId||null,
     page:"collection",
     category:savedPrefs.category||"",
+    yearFilter:savedPrefs.yearFilter||"",
     sort:savedPrefs.sort||"desc",
     search:savedPrefs.search||"",
     ownership:savedPrefs.ownership||"",
     newFilter:savedPrefs.newFilter||"",
     oshiOnly:savedPrefs.oshiOnly||false,
     pageMemberId:savedPrefs.pageMemberId||"",
+    wishlistYear:savedPrefs.wishlistYear||"",
+    tradeYear:savedPrefs.tradeYear||"",
     missingMemberId:savedPrefs.missingMemberId||"",
     missingPositionId:savedPrefs.missingPositionId||"",
+    missingYear:savedPrefs.missingYear||"",
     missingEventOrder:savedPrefs.missingEventOrder||"desc",
     missingSearch:savedPrefs.missingSearch||"",
     counts:JSON.parse(localStorage.getItem(COUNT_KEY)||"{}"),
@@ -85,14 +89,18 @@ function initializeApp() {
     localStorage.setItem(PREF_KEY,JSON.stringify({
       memberId:state.memberId,
       category:state.category,
+      yearFilter:state.yearFilter,
       sort:state.sort,
       search:state.search,
       ownership:state.ownership,
       newFilter:state.newFilter,
       oshiOnly:state.oshiOnly,
       pageMemberId:state.pageMemberId,
+      wishlistYear:state.wishlistYear,
+      tradeYear:state.tradeYear,
       missingMemberId:state.missingMemberId,
       missingPositionId:state.missingPositionId,
+      missingYear:state.missingYear,
       missingEventOrder:state.missingEventOrder,
       missingSearch:state.missingSearch
     }));
@@ -115,6 +123,10 @@ function initializeApp() {
 
   function esc(v){return String(v||"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;")}
   function yearOf(e){const s=(e.period||e.id||"").match(/20\d{2}/);return s?s[0]:"不明"}
+  function yearOptions(selected="",allLabel="すべての年代"){
+    const years=[...new Set(EVENTS.map(yearOf).filter(y=>y!=="不明"))].sort((a,b)=>Number(b)-Number(a));
+    return `<option value="">${allLabel}</option>`+years.map(y=>`<option value="${y}" ${String(selected)===String(y)?"selected":""}>${y}年</option>`).join("");
+  }
   function normalizeText(value){return String(value||"").toLowerCase().replace(/[\s　・･「」『』（）()【】\-_.]/g,"")}
   function eventSearchText(e){
     const parts=String(e.id||"").match(/(20\d{2})-(\d{2})/);
@@ -162,6 +174,7 @@ function initializeApp() {
     const base=state.mode==="member"?eligibleEventsForMember(MEMBERS.find(m=>m.id===state.memberId)):EVENTS;
     return base
       .filter(e=>!state.category||e.category===state.category)
+      .filter(e=>!state.yearFilter||yearOf(e)===state.yearFilter)
       .filter(eventOwnershipMatches)
       .filter(e=>state.newFilter!=="new"||isNewEvent(e))
       .filter(e=>!q||eventSearchText(e).includes(q))
@@ -232,8 +245,8 @@ function openMember(id){
     if(!list.length){
       $("eventList").innerHTML=`<div class="empty-state"><span>🔍</span><h3>該当するデータがありません</h3><p>検索条件やフィルターを変更してください。</p><button id="resetFiltersButton">条件をリセット</button></div>`;
       document.getElementById("resetFiltersButton").onclick=()=>{
-        state.category="";state.sort="desc";state.search="";state.ownership="";state.newFilter="";state.oshiOnly=false;savePreferences();
-        $("searchInput").value="";$("categoryFilter").value="";$("sortOrder").value="desc";$("ownershipFilter").value="";$("newFilter").value="";$("oshiFilter").value="";
+        state.category="";state.yearFilter="";state.sort="desc";state.search="";state.ownership="";state.newFilter="";state.oshiOnly=false;savePreferences();
+        $("searchInput").value="";$("categoryFilter").value="";$("yearFilter").value="";$("sortOrder").value="desc";$("ownershipFilter").value="";$("newFilter").value="";$("oshiFilter").value="";
         renderCollection();
       };
       return;
@@ -259,7 +272,9 @@ function openMember(id){
       if(!map.has(key))map.set(key,{m,e,positions:[]});
       map.get(key).positions.push({p,count:getCount(e.id,m.id,p.id)});
     })));
-    return [...map.values()].sort((a,b)=>b.e.sort-a.e.sort);
+    return [...map.values()]
+      .filter(x=>!state.wishlistYear||yearOf(x.e)===state.wishlistYear)
+      .sort((a,b)=>b.e.sort-a.e.sort);
   }
   function groupedTradeItems(){
     const map=new Map();
@@ -270,7 +285,9 @@ function openMember(id){
       if(!map.has(key))map.set(key,{m,e,positions:[]});
       map.get(key).positions.push({p,extra:n-1,total:n});
     })));
-    return [...map.values()].sort((a,b)=>b.e.sort-a.e.sort);
+    return [...map.values()]
+      .filter(x=>!state.tradeYear||yearOf(x.e)===state.tradeYear)
+      .sort((a,b)=>b.e.sort-a.e.sort);
   }
   function renderGroupedWantItem(x){
     const tags=x.positions.map(v=>`<span class="pill">♡ ${v.p.name}${v.count>0?`（所持 ${v.count}枚）`:""}</span>`).join("");
@@ -291,14 +308,16 @@ function openMember(id){
   function renderWishlist(){
     const groups=groupedWantedItems();
     const typeCount=groups.reduce((sum,g)=>sum+g.positions.length,0);
-    $("wishlistPage").innerHTML=`<div class="page-head"><h2>♡ 欲しい生写真一覧</h2><p>${groups.length}イベント・${typeCount}種類を登録中</p></div><div class="page-filter"><select id="pageMemberFilter">${pageMemberOptions()}</select></div><div class="list-page">${groups.length?groups.map(renderGroupedWantItem).join(""):'<div class="empty">欲しい生写真はまだ登録されていません。</div>'}</div>`;
+    $("wishlistPage").innerHTML=`<div class="page-head"><h2>♡ 欲しい生写真一覧</h2><p>${groups.length}イベント・${typeCount}種類を登録中</p></div><div class="page-filter list-filter-grid"><select id="pageMemberFilter">${pageMemberOptions()}</select><select id="wishlistYearFilter">${yearOptions(state.wishlistYear)}</select></div><div class="list-page">${groups.length?groups.map(renderGroupedWantItem).join(""):'<div class="empty">条件に該当する欲しい生写真はありません。</div>'}</div>`;
     bindPageMemberFilter();
+    document.getElementById("wishlistYearFilter").onchange=e=>{state.wishlistYear=e.target.value;savePreferences();renderWishlist()};
   }
   function renderTrade(){
     const groups=groupedTradeItems();
     const typeCount=groups.reduce((sum,g)=>sum+g.positions.length,0);
-    $("tradePage").innerHTML=`<div class="page-head"><h2>🔄 ダブり・提供可能一覧</h2><p>${groups.length}イベント・${typeCount}種類を表示中</p></div><div class="page-filter"><select id="pageMemberFilter">${pageMemberOptions()}</select></div><div class="list-page">${groups.length?groups.map(renderGroupedTradeItem).join(""):'<div class="empty">提供可能なダブりはありません。</div>'}</div>`;
+    $("tradePage").innerHTML=`<div class="page-head"><h2>🔄 ダブり・提供可能一覧</h2><p>${groups.length}イベント・${typeCount}種類を表示中</p></div><div class="page-filter list-filter-grid"><select id="pageMemberFilter">${pageMemberOptions()}</select><select id="tradeYearFilter">${yearOptions(state.tradeYear)}</select></div><div class="list-page">${groups.length?groups.map(renderGroupedTradeItem).join(""):'<div class="empty">条件に該当する提供可能データはありません。</div>'}</div>`;
     bindPageMemberFilter();
+    document.getElementById("tradeYearFilter").onchange=e=>{state.tradeYear=e.target.value;savePreferences();renderTrade()};
   }
 
 
@@ -317,6 +336,7 @@ function openMember(id){
     const positionIds=state.missingPositionId?[state.missingPositionId]:POSITIONS.map(p=>p.id);
     return members.map(m=>{
       const items=eligibleEventsForMember(m)
+        .filter(e=>!state.missingYear||yearOf(e)===state.missingYear)
         .filter(e=>!q||eventSearchText(e).includes(q))
         .map(e=>({e,positions:POSITIONS.filter(p=>positionIds.includes(p.id)&&getCount(e.id,m.id,p.id)===0)}))
         .filter(x=>x.positions.length)
@@ -333,6 +353,7 @@ function openMember(id){
       <div class="missing-controls">
         <select id="missingMemberFilter">${missingMemberOptions()}</select>
         <select id="missingPositionFilter">${missingPositionOptions()}</select>
+        <select id="missingYearFilter">${yearOptions(state.missingYear)}</select>
         <button id="missingOshiToggle" class="oshi-toggle ${state.oshiOnly?"on":""}">👑 推しだけ</button>
         <select id="missingEventOrder">
           <option value="desc" ${state.missingEventOrder==="desc"?"selected":""}>イベント：新しい順</option>
@@ -356,6 +377,7 @@ function openMember(id){
         </section>`).join(""):'<div class="empty">条件に該当する未所持データはありません。</div>'}</div>`;
     document.getElementById("missingMemberFilter").onchange=e=>{state.missingMemberId=e.target.value;savePreferences();renderMissing()};
     document.getElementById("missingPositionFilter").onchange=e=>{state.missingPositionId=e.target.value;savePreferences();renderMissing()};
+    document.getElementById("missingYearFilter").onchange=e=>{state.missingYear=e.target.value;savePreferences();renderMissing()};
     document.getElementById("missingOshiToggle").onclick=()=>{state.oshiOnly=!state.oshiOnly;savePreferences();renderMissing()};
     document.getElementById("missingEventOrder").onchange=e=>{state.missingEventOrder=e.target.value;savePreferences();renderMissing()};
     document.getElementById("missingSearchInput").oninput=e=>{state.missingSearch=e.target.value;savePreferences();renderMissing()};
@@ -422,7 +444,7 @@ function openMember(id){
       <div class="guide-list">
         <section class="panel guide-card"><span>1</span><div><h3>メンバーを選ぶ</h3><p>TOPからメンバーを選択します。「全メンバー」ではイベント単位でまとめて確認できます。</p></div></section>
         <section class="panel guide-card"><span>2</span><div><h3>生写真を登録する</h3><p>ヨリ・チュウ・ヒキの「＋」「−」で所持枚数を変更します。♡は欲しい、✍️は直筆です。</p></div></section>
-        <section class="panel guide-card"><span>3</span><div><h3>一覧を絞り込む</h3><p>検索・カテゴリ・新着・所持状況・推しだけ表示を組み合わせられます。選択内容は自動保存されます。</p></div></section>
+        <section class="panel guide-card"><span>3</span><div><h3>一覧を絞り込む</h3><p>検索・年代・カテゴリ・新着・所持状況・推しだけ表示を組み合わせられます。選択内容は自動保存されます。</p></div></section>
         <section class="panel guide-card"><span>4</span><div><h3>未所持・提供可能を確認する</h3><p>未所持一覧はメンバーの五十音順、各メンバー内はイベント順です。2枚目以降は提供可能として表示されます。</p></div></section>
         <section class="panel guide-card"><span>5</span><div><h3>推しを設定する</h3><p>最推し・推し・気になるの3段階です。TOP優先表示や推しだけの統計・未所持確認に使えます。</p></div></section>
         <section class="panel guide-card important"><span>6</span><div><h3>定期的にバックアップする</h3><p>端末変更、Safariのデータ削除、ブラウザ変更に備えてJSONを保存してください。復元前には日時と件数を確認できます。</p></div></section>
@@ -769,6 +791,8 @@ function openMember(id){
   document.addEventListener("keydown",e=>{if(e.key==="Escape")closeMemberSelector()});
   $("searchInput").value=state.search;
   $("categoryFilter").value=state.category;
+  $("yearFilter").innerHTML=yearOptions(state.yearFilter);
+  $("yearFilter").value=state.yearFilter;
   $("sortOrder").value=state.sort;
   $("ownershipFilter").value=state.ownership;
   $("newFilter").value=state.newFilter;
@@ -776,6 +800,7 @@ function openMember(id){
   $("backButton").onclick=()=>{$("managerScreen").classList.add("hidden");$("homeScreen").classList.remove("hidden");window.scrollTo(0,0)};
   $("searchInput").oninput=e=>{state.search=e.target.value;savePreferences();renderCollection()};
   $("categoryFilter").onchange=e=>{state.category=e.target.value;savePreferences();renderCollection()};
+  $("yearFilter").onchange=e=>{state.yearFilter=e.target.value;savePreferences();renderCollection()};
   $("sortOrder").onchange=e=>{state.sort=e.target.value;savePreferences();renderCollection()};
   $("ownershipFilter").onchange=e=>{state.ownership=e.target.value;savePreferences();renderCollection()};
   $("newFilter").onchange=e=>{state.newFilter=e.target.value;savePreferences();renderCollection()};
