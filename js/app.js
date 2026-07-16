@@ -5,10 +5,10 @@ let APP_CONFIG = {};
 
 async function loadAppData() {
   const [eventsResponse, membersResponse, positionsResponse, configResponse] = await Promise.all([
-    fetch("./data/events.json?v=1.04",{cache:"no-store"}),
+    fetch("./data/events.json?v=1.05",{cache:"no-store"}),
     fetch("./data/members.json?v=1.0.0",{cache:"no-store"}),
     fetch("./data/positions.json?v=1.0.0-orderfix",{cache:"no-store"}),
-    fetch("./data/config.json?v=1.04",{cache:"no-store"})
+    fetch("./data/config.json?v=1.05",{cache:"no-store"})
   ]);
 
   if (!eventsResponse.ok || !membersResponse.ok || !positionsResponse.ok || !configResponse.ok) {
@@ -143,6 +143,330 @@ function initializeApp() {
     }));
   }
   const $=id=>document.getElementById(id);
+
+  const MEMBER_IMAGE_DB_NAME="equal-love-photo-manager-member-images";
+  const MEMBER_IMAGE_DB_VERSION=1;
+  const MEMBER_IMAGE_STORE="memberImages";
+  const memberImageRecords=new Map();
+  const memberImageUrls=new Map();
+  let memberImagesReady=false;
+  let memberImageLoadError="";
+  let memberImageDbPromise=null;
+  let imageEditDraft=null;
+  let imageEditPreviewUrl="";
+
+  function openMemberImageDb(){
+    if(memberImageDbPromise)return memberImageDbPromise;
+    memberImageDbPromise=new Promise((resolve,reject)=>{
+      if(!("indexedDB" in window)){reject(new Error("このブラウザは端末内画像保存に対応していません"));return}
+      const request=indexedDB.open(MEMBER_IMAGE_DB_NAME,MEMBER_IMAGE_DB_VERSION);
+      request.onupgradeneeded=()=>{
+        const db=request.result;
+        if(!db.objectStoreNames.contains(MEMBER_IMAGE_STORE)){
+          db.createObjectStore(MEMBER_IMAGE_STORE,{keyPath:"memberId"});
+        }
+      };
+      request.onsuccess=()=>resolve(request.result);
+      request.onerror=()=>reject(request.error||new Error("画像保存領域を開けませんでした"));
+      request.onblocked=()=>reject(new Error("画像保存領域の更新がブロックされています"));
+    });
+    return memberImageDbPromise;
+  }
+
+  function imageDbRequest(mode,operation){
+    return openMemberImageDb().then(db=>new Promise((resolve,reject)=>{
+      const transaction=db.transaction(MEMBER_IMAGE_STORE,mode);
+      const store=transaction.objectStore(MEMBER_IMAGE_STORE);
+      let request;
+      try{request=operation(store)}catch(error){reject(error);return}
+      request.onsuccess=()=>resolve(request.result);
+      request.onerror=()=>reject(request.error||new Error("画像データを処理できませんでした"));
+      transaction.onabort=()=>reject(transaction.error||new Error("画像データの処理が中断されました"));
+    }));
+  }
+
+  function normalizeMemberImageRecord(record){
+    return {
+      memberId:String(record.memberId||""),
+      blob:record.blob,
+      positionX:Number.isFinite(Number(record.positionX))?Number(record.positionX):50,
+      positionY:Number.isFinite(Number(record.positionY))?Number(record.positionY):50,
+      zoom:Number.isFinite(Number(record.zoom))?Math.min(2,Math.max(1,Number(record.zoom))):1,
+      updatedAt:String(record.updatedAt||new Date().toISOString())
+    };
+  }
+
+  function cacheMemberImageRecord(record){
+    const normalized=normalizeMemberImageRecord(record);
+    const oldUrl=memberImageUrls.get(normalized.memberId);
+    if(oldUrl)URL.revokeObjectURL(oldUrl);
+    memberImageRecords.set(normalized.memberId,normalized);
+    memberImageUrls.set(normalized.memberId,URL.createObjectURL(normalized.blob));
+  }
+
+  function removeMemberImageCache(memberId){
+    const oldUrl=memberImageUrls.get(memberId);
+    if(oldUrl)URL.revokeObjectURL(oldUrl);
+    memberImageUrls.delete(memberId);
+    memberImageRecords.delete(memberId);
+  }
+
+  async function loadMemberImages(){
+    try{
+      const records=await imageDbRequest("readonly",store=>store.getAll());
+      memberImageRecords.clear();
+      memberImageUrls.forEach(url=>URL.revokeObjectURL(url));
+      memberImageUrls.clear();
+      records.forEach(record=>{
+        if(record?.memberId&&record?.blob instanceof Blob)cacheMemberImageRecord(record);
+      });
+      memberImagesReady=true;
+      memberImageLoadError="";
+    }catch(error){
+      memberImagesReady=true;
+      memberImageLoadError=error.message||"画像保存領域を読み込めませんでした";
+      console.warn("メンバー画像の読み込みに失敗しました",error);
+    }
+    renderHomeMembers();
+    if(state.page==="memberImages")renderMemberImages();
+    if(state.page==="oshi")renderOshi();
+  }
+
+  function memberImageRecord(memberId){return memberImageRecords.get(memberId)||null}
+  function memberImageUrl(memberId){return memberImageUrls.get(memberId)||""}
+
+  function memberImageStyle(record){
+    if(!record)return "";
+    const x=Math.min(100,Math.max(0,Number(record.positionX)||50));
+    const y=Math.min(100,Math.max(0,Number(record.positionY)||50));
+    const zoom=Math.min(2,Math.max(1,Number(record.zoom)||1));
+    return `object-position:${x}% ${y}%;transform:scale(${zoom})`;
+  }
+
+  function memberCardPhotoMarkup(member){
+    const record=memberImageRecord(member.id),url=memberImageUrl(member.id);
+    if(!record||!url)return "";
+    return `<img class="member-card-photo" src="${esc(url)}" alt="" style="${memberImageStyle(record)}"><span class="member-card-photo-shade"></span>`;
+  }
+
+  function memberAvatarMarkup(member,className="member-local-avatar"){
+    const record=memberImageRecord(member.id),url=memberImageUrl(member.id);
+    if(!record||!url)return `<span class="${className} emoji-fallback">${member.emoji}</span>`;
+    return `<span class="${className} has-photo"><img src="${esc(url)}" alt="" style="${memberImageStyle(record)}"></span>`;
+  }
+
+  function imageBytesTotal(){
+    return [...memberImageRecords.values()].reduce((sum,record)=>sum+(record.blob?.size||0),0);
+  }
+
+  function formatImageBytes(bytes){
+    if(bytes<1024)return `${bytes} B`;
+    if(bytes<1024*1024)return `${(bytes/1024).toFixed(1)} KB`;
+    return `${(bytes/(1024*1024)).toFixed(1)} MB`;
+  }
+
+  function loadImageElement(file){
+    return new Promise((resolve,reject)=>{
+      const url=URL.createObjectURL(file);
+      const image=new Image();
+      image.onload=()=>{URL.revokeObjectURL(url);resolve(image)};
+      image.onerror=()=>{URL.revokeObjectURL(url);reject(new Error("画像を読み込めませんでした"))};
+      image.src=url;
+    });
+  }
+
+  function canvasToBlob(canvas,type,quality){
+    return new Promise(resolve=>canvas.toBlob(resolve,type,quality));
+  }
+
+  async function compressMemberImage(file){
+    if(!file||!String(file.type||"").startsWith("image/"))throw new Error("画像ファイルを選択してください");
+    if(file.size>30*1024*1024)throw new Error("画像が大きすぎます。30MB以下の画像を選択してください");
+    const image=await loadImageElement(file);
+    const maxSide=1400;
+    const naturalWidth=image.naturalWidth||image.width;
+    const naturalHeight=image.naturalHeight||image.height;
+    const scale=Math.min(1,maxSide/Math.max(naturalWidth,naturalHeight));
+    const width=Math.max(1,Math.round(naturalWidth*scale));
+    const height=Math.max(1,Math.round(naturalHeight*scale));
+    const canvas=document.createElement("canvas");
+    canvas.width=width;canvas.height=height;
+    const context=canvas.getContext("2d",{alpha:false});
+    if(!context)throw new Error("画像の処理に対応していません");
+    context.fillStyle="#ffffff";
+    context.fillRect(0,0,width,height);
+    context.drawImage(image,0,0,width,height);
+    let blob=await canvasToBlob(canvas,"image/webp",0.84);
+    if(!blob)blob=await canvasToBlob(canvas,"image/jpeg",0.86);
+    if(!blob)throw new Error("画像を保存用に変換できませんでした");
+    return blob;
+  }
+
+  function chooseMemberImage(memberId){
+    const member=MEMBERS.find(item=>item.id===memberId);
+    if(!member)return;
+    const input=document.createElement("input");
+    input.type="file";
+    input.accept="image/*";
+    input.onchange=async()=>{
+      const file=input.files?.[0];
+      if(!file)return;
+      showActionToast("画像を端末内用に処理しています…");
+      try{
+        const blob=await compressMemberImage(file);
+        openImageAdjustSheet(memberId,{
+          memberId,
+          blob,
+          positionX:50,
+          positionY:50,
+          zoom:1,
+          updatedAt:new Date().toISOString()
+        });
+      }catch(error){
+        alert(`画像を設定できませんでした：${error.message}`);
+      }
+    };
+    input.click();
+  }
+
+  function updateImageAdjustPreview(){
+    if(!imageEditDraft)return;
+    const x=Number($("imagePositionX").value||50);
+    const y=Number($("imagePositionY").value||50);
+    const zoom=Number($("imageZoom").value||100)/100;
+    const preview=$("imageAdjustPreview");
+    preview.style.objectPosition=`${x}% ${y}%`;
+    preview.style.transform=`scale(${zoom})`;
+  }
+
+  function openImageAdjustSheet(memberId,record=null){
+    const member=MEMBERS.find(item=>item.id===memberId);
+    const source=record||memberImageRecord(memberId);
+    if(!member||!source?.blob)return;
+    if(imageEditPreviewUrl)URL.revokeObjectURL(imageEditPreviewUrl);
+    imageEditDraft=normalizeMemberImageRecord(source);
+    imageEditPreviewUrl=URL.createObjectURL(imageEditDraft.blob);
+    $("imageAdjustMemberName").textContent=`${member.emoji} ${member.name}`;
+    $("imageAdjustPreviewName").textContent=member.name;
+    $("imageAdjustPreview").src=imageEditPreviewUrl;
+    $("imagePositionX").value=String(imageEditDraft.positionX);
+    $("imagePositionY").value=String(imageEditDraft.positionY);
+    $("imageZoom").value=String(Math.round(imageEditDraft.zoom*100));
+    updateImageAdjustPreview();
+    openUtilitySheet("imageAdjustSheetOverlay");
+  }
+
+  function closeImageAdjustSheet(){
+    closeUtilitySheet("imageAdjustSheetOverlay");
+    if(imageEditPreviewUrl)URL.revokeObjectURL(imageEditPreviewUrl);
+    imageEditPreviewUrl="";
+    imageEditDraft=null;
+  }
+
+  async function saveImageAdjust(){
+    if(!imageEditDraft)return;
+    const record={
+      ...imageEditDraft,
+      positionX:Number($("imagePositionX").value||50),
+      positionY:Number($("imagePositionY").value||50),
+      zoom:Number($("imageZoom").value||100)/100,
+      updatedAt:new Date().toISOString()
+    };
+    try{
+      await imageDbRequest("readwrite",store=>store.put(record));
+      cacheMemberImageRecord(record);
+      closeImageAdjustSheet();
+      renderMemberImages();
+      renderHomeMembers();
+      if(state.page==="oshi")renderOshi();
+      showActionToast("メンバー画像を端末内に保存しました");
+    }catch(error){
+      alert(`画像を保存できませんでした：${error.message}`);
+    }
+  }
+
+  async function deleteMemberImage(memberId){
+    const member=MEMBERS.find(item=>item.id===memberId);
+    if(!member||!memberImageRecord(memberId))return;
+    if(!confirm(`${member.name}の設定画像をこの端末から削除しますか？`))return;
+    try{
+      await imageDbRequest("readwrite",store=>store.delete(memberId));
+      removeMemberImageCache(memberId);
+      renderMemberImages();
+      renderHomeMembers();
+      if(state.page==="oshi")renderOshi();
+      showActionToast("設定画像を削除しました");
+    }catch(error){
+      alert(`画像を削除できませんでした：${error.message}`);
+    }
+  }
+
+  async function deleteAllMemberImages(){
+    if(!memberImageRecords.size)return;
+    if(!confirm(`設定済みのメンバー画像 ${memberImageRecords.size}件を、この端末からすべて削除しますか？\n所持データや推し設定は削除されません。`))return;
+    try{
+      await imageDbRequest("readwrite",store=>store.clear());
+      memberImageUrls.forEach(url=>URL.revokeObjectURL(url));
+      memberImageUrls.clear();
+      memberImageRecords.clear();
+      renderMemberImages();
+      renderHomeMembers();
+      if(state.page==="oshi")renderOshi();
+      showActionToast("メンバー画像をすべて削除しました");
+    }catch(error){
+      alert(`画像を削除できませんでした：${error.message}`);
+    }
+  }
+
+  function renderMemberImages(){
+    const page=$("memberImagesPage");
+    if(!page)return;
+    if(!memberImagesReady){
+      page.innerHTML=`<div class="page-head"><h2>🖼️ メンバー画像設定</h2><p>端末内の画像保存領域を読み込んでいます</p></div><div class="panel image-loading-panel">読み込み中…</div>`;
+      return;
+    }
+    if(memberImageLoadError){
+      page.innerHTML=`<div class="page-head"><h2>🖼️ メンバー画像設定</h2><p>端末内だけで好きな画像を表示します</p></div><div class="panel image-storage-error"><b>画像保存機能を利用できません</b><p>${esc(memberImageLoadError)}</p></div>`;
+      return;
+    }
+    const cards=rankedMembers(MEMBERS).map(member=>{
+      const record=memberImageRecord(member.id),url=memberImageUrl(member.id);
+      const preview=record&&url
+        ?`<div class="member-image-setting-preview has-photo"><img src="${esc(url)}" alt="" style="${memberImageStyle(record)}"></div>`
+        :`<div class="member-image-setting-preview" style="background:linear-gradient(135deg,${member.soft},#fff)"><span>${member.emoji}</span></div>`;
+      return `<article class="member-image-setting-card" style="--member-accent:${member.accent};--member-soft:${member.soft}">
+        ${preview}
+        <div class="member-image-setting-info">
+          <b>${member.emoji} ${esc(member.name)}</b>
+          <span>${record?`設定済み・${formatImageBytes(record.blob.size)}`:"画像未設定"}</span>
+          ${isGraduated(member)?'<small>卒業メンバー</small>':""}
+        </div>
+        <div class="member-image-setting-actions">
+          <button data-image-select="${esc(member.id)}">${record?"画像を変更":"画像を選択"}</button>
+          ${record?`<button data-image-adjust="${esc(member.id)}">位置調整</button><button class="danger" data-image-delete="${esc(member.id)}">削除</button>`:""}
+        </div>
+      </article>`;
+    }).join("");
+    page.innerHTML=`
+      <div class="page-head"><h2>🖼️ メンバー画像設定</h2><p>メンバーごとに好きな画像を設定できます</p></div>
+      <div class="panel local-image-policy">
+        <h3>🔒 この端末内だけに保存</h3>
+        <p>選択した画像はIndexedDBを使用して、この端末のブラウザ内だけに保存します。GitHubや外部サーバーへの送信、ほかの利用者への配布は行いません。</p>
+        <p>画像は通常のバックアップJSONには含まれません。画像の権利をご確認のうえ、個人利用の範囲で使用してください。</p>
+      </div>
+      <div class="member-image-summary">
+        <div><b>${memberImageRecords.size}</b><span>画像設定済み</span></div>
+        <div><b>${formatImageBytes(imageBytesTotal())}</b><span>端末内使用量</span></div>
+      </div>
+      <div class="member-image-settings-list">${cards}</div>
+      ${memberImageRecords.size?`<div class="panel member-image-danger-panel"><h3>画像設定をリセット</h3><p>所持データ・直筆・欲しい・推し設定は残したまま、端末内のメンバー画像だけを削除します。</p><button id="deleteAllMemberImagesButton">すべての画像を削除</button></div>`:""}`;
+    document.querySelectorAll("[data-image-select]").forEach(button=>button.onclick=()=>chooseMemberImage(button.dataset.imageSelect));
+    document.querySelectorAll("[data-image-adjust]").forEach(button=>button.onclick=()=>openImageAdjustSheet(button.dataset.imageAdjust));
+    document.querySelectorAll("[data-image-delete]").forEach(button=>button.onclick=()=>deleteMemberImage(button.dataset.imageDelete));
+    const deleteAllButton=$("deleteAllMemberImagesButton");
+    if(deleteAllButton)deleteAllButton.onclick=deleteAllMemberImages;
+  }
+
   let pendingScrollTarget="";
   function recordRecentEdit(eventId,memberId){
     if(!eventId||!memberId)return;
@@ -547,7 +871,7 @@ function openMember(id){
     if(!skipScrollSave)saveScrollPosition();
     if($("homeScreen").classList.contains("hidden")===false){state.mode="all";state.memberId=null;theme(null);$("homeScreen").classList.add("hidden");$("managerScreen").classList.remove("hidden")}
     state.page=page;
-    ["collection","quick","matrix","stats","wishlist","trade","missing","oshi","backup","help","about"].forEach(p=>$(p+"Page").classList.toggle("hidden",p!==page));
+    ["collection","quick","matrix","stats","wishlist","trade","missing","oshi","memberImages","backup","help","about"].forEach(p=>$(p+"Page").classList.toggle("hidden",p!==page));
     $("managerTools").classList.toggle("hidden",page!=="collection");
     document.querySelectorAll(".bottom-nav button").forEach(b=>b.classList.toggle("active",b.dataset.page===page));
     updateHeader();
@@ -559,6 +883,7 @@ function openMember(id){
     if(page==="trade")renderTrade();
     if(page==="missing")renderMissing();
     if(page==="oshi")renderOshi();
+    if(page==="memberImages")renderMemberImages();
     if(page==="backup")renderBackup();
     if(page==="help")renderHelp();
     if(page==="about")renderAbout();
@@ -855,7 +1180,7 @@ function openMember(id){
       const s=memberOshiStats(m),rank=oshiRank(m.id);
       return `<div class="oshi-setting-card ${rank?`selected rank-${rank}`:""}" style="--member-accent:${m.accent};--member-soft:${m.soft}">
         <div class="oshi-setting-main">
-          <div class="oshi-setting-name">${m.emoji} <b>${m.name}</b>${isGraduated(m)?'<span class="mini-graduated">卒業</span>':''}${oshiBadge(m)}</div>
+          <div class="oshi-setting-name">${memberAvatarMarkup(m,"oshi-setting-avatar")}<span class="oshi-setting-name-text"><b>${m.name}</b>${isGraduated(m)?'<span class="mini-graduated">卒業</span>':''}${oshiBadge(m)}</span></div>
           <select class="oshi-rank-select" data-member="${m.id}">
             <option value="" ${!rank?"selected":""}>設定なし</option>
             <option value="favorite" ${rank==="favorite"?"selected":""}>👑 最推し</option>
@@ -871,7 +1196,7 @@ function openMember(id){
       const s=memberOshiStats(m),rank=OSHI_RANKS[oshiRank(m.id)];
       return `<article class="oshi-focus-card ${s.rate===100?"complete-oshi":""}" style="--member-accent:${m.accent};--member-soft:${m.soft}">
         ${s.rate===100?'<div class="oshi-celebrate">🎉 推しメンコンプリート！</div>':""}
-        <div class="oshi-focus-head"><span class="oshi-focus-emoji">${m.emoji}</span><div><span>${rank.icon} ${rank.label}</span><h3>${m.name}</h3></div><b>${s.rate}%</b></div>
+        <div class="oshi-focus-head">${memberAvatarMarkup(m,"oshi-focus-avatar")}<div><span>${rank.icon} ${rank.label}</span><h3>${m.name}</h3></div><b>${s.rate}%</b></div>
         <div class="oshi-focus-stats"><span>所持 <b>${s.total}枚</b></span><span>未所持 <b>${s.missing}種</b></span><span>直筆 <b>${s.signed}種</b></span></div>
         <div class="oshi-actions"><button data-missing="${m.id}">未所持を見る</button><button data-wishlist="${m.id}">欲しい一覧</button></div>
       </article>`;
@@ -895,8 +1220,9 @@ function openMember(id){
         <section class="panel guide-card"><span>3</span><div><h3>一覧を絞り込む</h3><p>検索欄と「絞り込み」「並び順」を使います。選択中の条件はチップで表示され、個別に解除できます。</p></div></section>
         <section class="panel guide-card"><span>4</span><div><h3>未所持・提供可能を確認する</h3><p>未所持一覧はメンバーの五十音順、各メンバー内はイベント順です。2枚目以降は提供可能として表示されます。</p></div></section>
         <section class="panel guide-card"><span>5</span><div><h3>推しを設定する</h3><p>最推し・推し・気になるの3段階です。メンバーカードの推しバッジや、推しだけの統計・未所持確認に使えます。</p></div></section>
-        <section class="panel guide-card important"><span>6</span><div><h3>定期的にバックアップする</h3><p>端末変更、Safariのデータ削除、ブラウザ変更に備えてJSONを保存してください。復元前には日時と件数を確認できます。</p></div></section>
-        <section class="panel guide-card"><span>7</span><div><h3>iPhoneでアプリ化する</h3><p>Safariの共有ボタンから「ホーム画面に追加」を選択します。一度読み込めばオフラインでも閲覧できます。</p></div></section>
+        <section class="panel guide-card"><span>6</span><div><h3>メンバー画像を設定する</h3><p>TOP右上の設定から、端末内の好きな画像をメンバーごとに登録できます。画像は外部送信されず、通常バックアップにも含まれません。</p></div></section>
+        <section class="panel guide-card important"><span>7</span><div><h3>定期的にバックアップする</h3><p>端末変更、Safariのデータ削除、ブラウザ変更に備えてJSONを保存してください。復元前には日時と件数を確認できます。</p></div></section>
+        <section class="panel guide-card"><span>8</span><div><h3>iPhoneでアプリ化する</h3><p>Safariの共有ボタンから「ホーム画面に追加」を選択します。一度読み込めばオフラインでも閲覧できます。</p></div></section>
       </div>`;
   }
   function renderAbout(){
@@ -915,8 +1241,8 @@ function openMember(id){
         <div class="panel"><b>${graduated}</b><span>卒業メンバー</span></div>
       </div>
       <div class="panel about-notes">
-        <h3>Ver1.04の主な機能</h3>
-        <p>クイック入力・イベント表の並び替え、TOP設定メニュー、五十音順の推し表示、一括操作、統合フィルター、データ保護に対応しています。</p>
+        <h3>Ver1.05の主な機能</h3>
+        <p>端末内メンバー画像、画像位置・拡大調整、クイック入力、イベント表、TOP設定メニュー、一括操作、統合フィルター、データ保護に対応しています。</p>
         <h3>保存について</h3>
         <p>登録内容はこのブラウザ内に保存されます。別端末へ移す場合は、バックアップ画面からJSONファイルを保存してください。</p>
       </div>`;
@@ -1185,7 +1511,7 @@ function openMember(id){
       <div class="panel backup-panel">
         <div class="backup-icon">📤</div>
         <h3>バックアップを保存</h3>
-        <p>所持枚数・直筆・欲しい・推し・フィルター設定を、1つのJSONファイルに保存します。</p>
+        <p>所持枚数・直筆・欲しい・推し・フィルター設定を、1つのJSONファイルに保存します。端末内のメンバー画像は含まれません。</p>
         <button id="exportBackupButton" class="primary-action">バックアップファイルを保存</button>
       </div>
       <div class="panel backup-panel">
@@ -1220,7 +1546,7 @@ function openMember(id){
       <div class="panel danger-panel">
         <div class="backup-icon">🗑️</div>
         <h3>保存データを全削除</h3>
-        <p>所持枚数・直筆・欲しい情報・保存済みフィルター設定を削除します。確認は2段階です。</p>
+        <p>所持枚数・直筆・欲しい情報・保存済みフィルター設定を削除します。メンバー画像は画像設定から別途削除できます。確認は2段階です。</p>
         <button id="deleteAllDataButton" class="danger-action">すべての保存データを削除</button>
       </div>
       <div id="backupMessage" class="backup-message"></div>`;
@@ -1236,13 +1562,14 @@ function openMember(id){
 
   function createMemberButton(m){
     const b=document.createElement("button");
-    const rank=oshiRank(m.id);b.className=`member-card${isGraduated(m)?" graduated":""}${rank?` oshi-card rank-${rank}`:""}`;
+    const rank=oshiRank(m.id),hasImage=!!memberImageRecord(m.id);
+    b.className=`member-card${isGraduated(m)?" graduated":""}${rank?` oshi-card rank-${rank}`:""}${hasImage?" has-custom-image":""}`;
     b.style.background=isGraduated(m)?"linear-gradient(135deg,#d8d8d8,#fff)":`linear-gradient(135deg,${m.soft},rgba(255,255,255,.88))`;
     b.style.setProperty("--card-accent",m.accent);
     b.style.setProperty("--card-soft",m.soft);
     b.style.borderColor=isGraduated(m)?"rgba(255,255,255,.82)":`${m.accent}66`;
     const memberStats=statsFor([m]);
-    b.innerHTML=`${oshiBadge(m)}${state.memberId===m.id?'<span class="last-used">前回</span>':''}<span class="emoji">${m.emoji}</span><span class="name">${m.name}</span><span class="small">${isGraduated(m)?`${m.graduation}｜`:""}所持：${memberTotal(m.id)}枚</span><span class="member-rate-line"><span>コンプ率</span><b>${memberStats.rate}%</b></span><span class="member-rate-bar"><i style="width:${memberStats.rate}%"></i></span>`;
+    b.innerHTML=`${memberCardPhotoMarkup(m)}${oshiBadge(m)}${state.memberId===m.id?'<span class="last-used">前回</span>':''}<span class="emoji">${m.emoji}</span><span class="name">${m.name}</span><span class="small">${isGraduated(m)?`${m.graduation}｜`:""}所持：${memberTotal(m.id)}枚</span><span class="member-rate-line"><span>コンプ率</span><b>${memberStats.rate}%</b></span><span class="member-rate-bar"><i style="width:${memberStats.rate}%"></i></span>`;
     b.onclick=()=>openMember(m.id);
     return b;
   }
@@ -1253,9 +1580,15 @@ function openMember(id){
     rankedMembers(MEMBERS.filter(isGraduated)).forEach(m=>$("graduatedMemberGrid").appendChild(createMemberButton(m)));
   }
   renderHomeMembers();
+  loadMemberImages();
   renderRecentEvents();
   $("openSettingsButton").onclick=()=>openUtilitySheet("settingsSheetOverlay");
   $("closeSettingsSheetButton").onclick=()=>closeUtilitySheet("settingsSheetOverlay");
+  $("closeImageAdjustSheetButton").onclick=closeImageAdjustSheet;
+  $("cancelImageAdjustButton").onclick=closeImageAdjustSheet;
+  $("saveImageAdjustButton").onclick=saveImageAdjust;
+  ["imagePositionX","imagePositionY","imageZoom"].forEach(id=>$(id).oninput=updateImageAdjustPreview);
+  $("imageAdjustSheetOverlay").onclick=e=>{if(e.target===$("imageAdjustSheetOverlay"))closeImageAdjustSheet()};
   $("settingsSheetOverlay").onclick=e=>{if(e.target===$("settingsSheetOverlay"))closeUtilitySheet("settingsSheetOverlay")};
   document.querySelectorAll("[data-settings-page]").forEach(button=>button.onclick=()=>{
     const page=button.dataset.settingsPage;
@@ -1323,7 +1656,7 @@ function openMember(id){
   },{passive:true});
 
   selectorSheet.addEventListener("touchcancel",resetSelectorSwipe,{passive:true});
-  document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeMemberSelector();closeUtilitySheet("filterSheetOverlay");closeUtilitySheet("sortSheetOverlay");closeUtilitySheet("bulkSheetOverlay");closeUtilitySheet("settingsSheetOverlay")}});
+  document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeMemberSelector();closeUtilitySheet("filterSheetOverlay");closeUtilitySheet("sortSheetOverlay");closeUtilitySheet("bulkSheetOverlay");closeUtilitySheet("settingsSheetOverlay");closeImageAdjustSheet()}});
   $("searchInput").value=state.search;
   $("backButton").onclick=()=>{saveScrollPosition();renderRecentEvents();$("managerScreen").classList.add("hidden");$("homeScreen").classList.remove("hidden");window.scrollTo(0,0)};
   $("searchInput").oninput=e=>{state.search=e.target.value;savePreferences();renderCollection()};
@@ -1343,6 +1676,7 @@ function openMember(id){
   setupUtilitySheetSwipe("sortSheetOverlay");
   setupUtilitySheetSwipe("bulkSheetOverlay");
   setupUtilitySheetSwipe("settingsSheetOverlay");
+  setupUtilitySheetSwipe("imageAdjustSheetOverlay");
   document.querySelectorAll(".bottom-nav button").forEach(b=>b.onclick=()=>showPage(b.dataset.page));
   const topButton=document.createElement("button");
   topButton.id="backToTop";
