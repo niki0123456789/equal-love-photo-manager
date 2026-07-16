@@ -5,10 +5,10 @@ let APP_CONFIG = {};
 
 async function loadAppData() {
   const [eventsResponse, membersResponse, positionsResponse, configResponse] = await Promise.all([
-    fetch("./data/events.json?v=1.01-yearfilter",{cache:"no-store"}),
+    fetch("./data/events.json?v=1.02",{cache:"no-store"}),
     fetch("./data/members.json?v=1.0.0",{cache:"no-store"}),
     fetch("./data/positions.json?v=1.0.0-orderfix",{cache:"no-store"}),
-    fetch("./data/config.json?v=1.01-yearfilter",{cache:"no-store"})
+    fetch("./data/config.json?v=1.02",{cache:"no-store"})
   ]);
 
   if (!eventsResponse.ok || !membersResponse.ok || !positionsResponse.ok || !configResponse.ok) {
@@ -59,7 +59,24 @@ async function loadAppData() {
 function initializeApp() {
   const COUNT_KEY="equal-love-photo-manager-counts-v03",SIGN_KEY="equal-love-photo-manager-signatures-v04",WANT_KEY="equal-love-photo-manager-wants-v05",OSHI_KEY="equal-love-photo-manager-oshi-v099";
   const PREF_KEY="equal-love-photo-manager-preferences-v095";
-  const savedPrefs=JSON.parse(localStorage.getItem(PREF_KEY)||"{}");
+  const HISTORY_KEY="equal-love-photo-manager-auto-backups-v102";
+  const RECENT_KEY="equal-love-photo-manager-recent-edits-v102";
+  const SCROLL_KEY="equal-love-photo-manager-scroll-memory-v102";
+  const SCHEMA_VERSION=2;
+  function safeStorageObject(key){
+    try{
+      const value=JSON.parse(localStorage.getItem(key)||"{}");
+      return value&&typeof value==="object"&&!Array.isArray(value)?value:{};
+    }catch(error){
+      console.warn(`保存データ ${key} を読み込めませんでした`,error);
+      return {};
+    }
+  }
+  function safeStorageArray(key){
+    try{const value=JSON.parse(localStorage.getItem(key)||"[]");return Array.isArray(value)?value:[]}
+    catch(error){return []}
+  }
+  const savedPrefs=safeStorageObject(PREF_KEY);
   const state={
     mode:"all",
     memberId:savedPrefs.memberId||null,
@@ -74,15 +91,17 @@ function initializeApp() {
     pageMemberId:savedPrefs.pageMemberId||"",
     wishlistYear:savedPrefs.wishlistYear||"",
     tradeYear:savedPrefs.tradeYear||"",
+    wishlistOrder:savedPrefs.wishlistOrder||"desc",
+    tradeOrder:savedPrefs.tradeOrder||"desc",
     missingMemberId:savedPrefs.missingMemberId||"",
     missingPositionId:savedPrefs.missingPositionId||"",
     missingYear:savedPrefs.missingYear||"",
     missingEventOrder:savedPrefs.missingEventOrder||"desc",
     missingSearch:savedPrefs.missingSearch||"",
-    counts:JSON.parse(localStorage.getItem(COUNT_KEY)||"{}"),
-    signs:JSON.parse(localStorage.getItem(SIGN_KEY)||"{}"),
-    wants:JSON.parse(localStorage.getItem(WANT_KEY)||"{}"),
-    oshis:JSON.parse(localStorage.getItem(OSHI_KEY)||"{}"),
+    counts:safeStorageObject(COUNT_KEY),
+    signs:safeStorageObject(SIGN_KEY),
+    wants:safeStorageObject(WANT_KEY),
+    oshis:safeStorageObject(OSHI_KEY),
     expanded:{}
   };
   function savePreferences(){
@@ -98,6 +117,8 @@ function initializeApp() {
       pageMemberId:state.pageMemberId,
       wishlistYear:state.wishlistYear,
       tradeYear:state.tradeYear,
+      wishlistOrder:state.wishlistOrder,
+      tradeOrder:state.tradeOrder,
       missingMemberId:state.missingMemberId,
       missingPositionId:state.missingPositionId,
       missingYear:state.missingYear,
@@ -106,10 +127,60 @@ function initializeApp() {
     }));
   }
   const $=id=>document.getElementById(id);
+  let pendingScrollTarget="";
+  function recordRecentEdit(eventId,memberId){
+    if(!eventId||!memberId)return;
+    const items=safeStorageArray(RECENT_KEY).filter(item=>!(item.eventId===eventId&&item.memberId===memberId));
+    items.unshift({eventId,memberId,updatedAt:new Date().toISOString()});
+    localStorage.setItem(RECENT_KEY,JSON.stringify(items.slice(0,5)));
+  }
+  function renderRecentEvents(){
+    const section=$("recentDashboardSection"),list=$("recentEventList");
+    if(!section||!list)return;
+    const items=safeStorageArray(RECENT_KEY).map(item=>({
+      ...item,
+      event:EVENTS.find(e=>e.id===item.eventId),
+      member:MEMBERS.find(m=>m.id===item.memberId)
+    })).filter(item=>item.event&&item.member);
+    section.classList.toggle("hidden",!items.length);
+    list.innerHTML=items.map(item=>`<button class="recent-event-card" data-recent-event="${esc(item.eventId)}" data-recent-member="${esc(item.memberId)}"><span class="recent-member">${item.member.emoji} ${esc(item.member.name)}</span><b>${esc(item.event.period||item.event.officialName)}</b><small>${esc(item.event.work||item.event.category)}</small><i>›</i></button>`).join("");
+    list.querySelectorAll("[data-recent-event]").forEach(button=>button.onclick=()=>openRecentEvent(button.dataset.recentEvent,button.dataset.recentMember));
+  }
+  function openRecentEvent(eventId,memberId){
+    const member=MEMBERS.find(m=>m.id===memberId);
+    if(!member)return;
+    state.mode="member";state.memberId=memberId;state.pageMemberId=memberId;
+    state.search="";state.category="";state.yearFilter="";state.ownership="";state.newFilter="";
+    pendingScrollTarget=eventId;
+    savePreferences();theme(member);openManager();
+  }
+  function scrollContextKey(){
+    return `${state.mode}:${state.memberId||"all"}:${state.page}`;
+  }
+  function getScrollMemory(){
+    try{const value=JSON.parse(sessionStorage.getItem(SCROLL_KEY)||"{}");return value&&typeof value==="object"?value:{}}
+    catch(error){return {}}
+  }
+  function saveScrollPosition(){
+    if($("managerScreen")?.classList.contains("hidden"))return;
+    const memory=getScrollMemory();memory[scrollContextKey()]=Math.max(0,Math.round(window.scrollY));
+    sessionStorage.setItem(SCROLL_KEY,JSON.stringify(memory));
+  }
+  function restoreScrollPosition(){
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      if(pendingScrollTarget){
+        const target=[...document.querySelectorAll("[data-event-id]")].find(node=>node.dataset.eventId===pendingScrollTarget);
+        pendingScrollTarget="";
+        if(target){target.scrollIntoView({block:"start"});return}
+      }
+      const top=Number(getScrollMemory()[scrollContextKey()]||0);
+      window.scrollTo(0,top);
+    }));
+  }
   function k(e,m,p){return `${e}__${m}__${p}`} function getCount(e,m,p){return Number(state.counts[k(e,m,p)]||0)}
-  function setCount(e,m,p,n){const x=k(e,m,p);if(n<=0)delete state.counts[x];else state.counts[x]=n;localStorage.setItem(COUNT_KEY,JSON.stringify(state.counts))}
-  function isSigned(e,m,p){return !!state.signs[k(e,m,p)]} function toggleSign(e,m,p){const x=k(e,m,p);state.signs[x]?delete state.signs[x]:state.signs[x]=true;localStorage.setItem(SIGN_KEY,JSON.stringify(state.signs))}
-  function isWanted(e,m,p){return !!state.wants[k(e,m,p)]} function toggleWant(e,m,p){const x=k(e,m,p);state.wants[x]?delete state.wants[x]:state.wants[x]=true;localStorage.setItem(WANT_KEY,JSON.stringify(state.wants))}
+  function setCount(e,m,p,n){const x=k(e,m,p);if(n<=0)delete state.counts[x];else state.counts[x]=n;localStorage.setItem(COUNT_KEY,JSON.stringify(state.counts));recordRecentEdit(e,m)}
+  function isSigned(e,m,p){return !!state.signs[k(e,m,p)]} function toggleSign(e,m,p){const x=k(e,m,p);state.signs[x]?delete state.signs[x]:state.signs[x]=true;localStorage.setItem(SIGN_KEY,JSON.stringify(state.signs));recordRecentEdit(e,m)}
+  function isWanted(e,m,p){return !!state.wants[k(e,m,p)]} function toggleWant(e,m,p){const x=k(e,m,p);state.wants[x]?delete state.wants[x]:state.wants[x]=true;localStorage.setItem(WANT_KEY,JSON.stringify(state.wants));recordRecentEdit(e,m)}
   const OSHI_RANKS={favorite:{label:"最推し",icon:"👑",weight:3},oshi:{label:"推し",icon:"⭐",weight:2},interest:{label:"気になる",icon:"♡",weight:1}};
   function oshiRank(id){return state.oshis[id]||""}
   function isOshi(id){return !!oshiRank(id)}
@@ -169,6 +240,213 @@ function initializeApp() {
     return state.ownership==="owned"?counts.some(n=>n>0):counts.every(n=>n===0);
   }
   function memberTotal(id){let t=0;const m=MEMBERS.find(x=>x.id===id);eligibleEventsForMember(m).forEach(e=>POSITIONS.forEach(p=>t+=getCount(e.id,id,p.id)));return t}
+  function collectionFilterEntries(){
+    const entries=[];
+    if(state.yearFilter)entries.push({key:"year",label:`${state.yearFilter}年`});
+    if(state.category)entries.push({key:"category",label:state.category});
+    if(state.mode!=="all"&&state.ownership)entries.push({key:"ownership",label:state.ownership==="owned"?"所持あり":"未所持"});
+    if(state.newFilter==="new")entries.push({key:"new",label:"NEWのみ"});
+    if(state.mode==="all"&&state.oshiOnly)entries.push({key:"oshi",label:"推しだけ"});
+    return entries;
+  }
+  function listFilterEntries(page){
+    if(page==="wishlist"){
+      const entries=[];
+      if(state.pageMemberId){const m=MEMBERS.find(x=>x.id===state.pageMemberId);if(m)entries.push({key:"member",label:`${m.emoji} ${m.name}`})}
+      if(state.wishlistYear)entries.push({key:"year",label:`${state.wishlistYear}年`});
+      return entries;
+    }
+    if(page==="trade"){
+      const entries=[];
+      if(state.pageMemberId){const m=MEMBERS.find(x=>x.id===state.pageMemberId);if(m)entries.push({key:"member",label:`${m.emoji} ${m.name}`})}
+      if(state.tradeYear)entries.push({key:"year",label:`${state.tradeYear}年`});
+      return entries;
+    }
+    if(page==="missing"){
+      const entries=[];
+      if(state.missingMemberId){const m=MEMBERS.find(x=>x.id===state.missingMemberId);if(m)entries.push({key:"member",label:`${m.emoji} ${m.name}`})}
+      if(state.missingPositionId){const p=POSITIONS.find(x=>x.id===state.missingPositionId);if(p)entries.push({key:"position",label:p.name})}
+      if(state.missingYear)entries.push({key:"year",label:`${state.missingYear}年`});
+      if(state.oshiOnly)entries.push({key:"oshi",label:"推しだけ"});
+      return entries;
+    }
+    return [];
+  }
+  function sortLabel(page){
+    const order=page==="collection"?state.sort:page==="wishlist"?state.wishlistOrder:page==="trade"?state.tradeOrder:state.missingEventOrder;
+    if(order==="asc")return "古い順";
+    if(order==="new")return "NEW優先";
+    return "新しい順";
+  }
+  function filterChipsHtml(entries,page){
+    return entries.map(item=>`<button class="active-filter-chip" data-filter-page="${page}" data-filter-key="${item.key}">${esc(item.label)} <span>×</span></button>`).join("");
+  }
+  function listToolbarHtml(page){
+    const entries=listFilterEntries(page);
+    return `<div class="unified-list-tools">
+      <div class="unified-filter-toolbar">
+        <button class="filter-action-button" data-open-filter="${page}"><span>⚙️</span><b>絞り込み</b>${entries.length?`<i class="filter-count">${entries.length}</i>`:""}</button>
+        <button class="filter-action-button" data-open-sort="${page}"><span>↕</span><b>${sortLabel(page)}</b></button>
+      </div>
+      <div class="active-filter-chips">${filterChipsHtml(entries,page)}</div>
+    </div>`;
+  }
+  function renderCollectionFilterUi(){
+    const entries=collectionFilterEntries();
+    const count=$("collectionFilterCount");
+    if(count){count.textContent=entries.length;count.classList.toggle("hidden",!entries.length)}
+    const label=$("collectionSortLabel");if(label)label.textContent=sortLabel("collection");
+    const chips=$("collectionFilterChips");if(chips)chips.innerHTML=filterChipsHtml(entries,"collection");
+    bindFilterChipButtons();
+  }
+  function bindListToolbar(page){
+    document.querySelectorAll(`[data-open-filter="${page}"]`).forEach(button=>button.onclick=()=>openFilterSheet(page));
+    document.querySelectorAll(`[data-open-sort="${page}"]`).forEach(button=>button.onclick=()=>openSortSheet(page));
+    bindFilterChipButtons();
+  }
+  function bindFilterChipButtons(){
+    document.querySelectorAll("[data-filter-page][data-filter-key]").forEach(button=>{
+      button.onclick=()=>removeFilterChip(button.dataset.filterPage,button.dataset.filterKey);
+    });
+  }
+  function removeFilterChip(page,key){
+    if(page==="collection"){
+      if(key==="year")state.yearFilter="";
+      if(key==="category")state.category="";
+      if(key==="ownership")state.ownership="";
+      if(key==="new")state.newFilter="";
+      if(key==="oshi")state.oshiOnly=false;
+      savePreferences();renderCollection();return;
+    }
+    if(page==="wishlist"){
+      if(key==="member")state.pageMemberId="";
+      if(key==="year")state.wishlistYear="";
+      savePreferences();renderWishlist();return;
+    }
+    if(page==="trade"){
+      if(key==="member")state.pageMemberId="";
+      if(key==="year")state.tradeYear="";
+      savePreferences();renderTrade();return;
+    }
+    if(page==="missing"){
+      if(key==="member")state.missingMemberId="";
+      if(key==="position")state.missingPositionId="";
+      if(key==="year")state.missingYear="";
+      if(key==="oshi")state.oshiOnly=false;
+      savePreferences();renderMissing();
+    }
+  }
+  let activeFilterPage="collection";
+  function filterSheetField(label,content){return `<label class="sheet-field"><span>${label}</span>${content}</label>`}
+  function filterSheetToggle(id,label,checked){return `<label class="sheet-toggle"><input id="${id}" type="checkbox" ${checked?"checked":""}><span>${label}</span></label>`}
+  function openFilterSheet(page="collection"){
+    activeFilterPage=page;
+    const body=$("filterSheetBody");
+    $("filterSheetTitle").textContent=page==="collection"?"生写真一覧の絞り込み":page==="wishlist"?"欲しい一覧の絞り込み":page==="trade"?"提供可能一覧の絞り込み":"未所持一覧の絞り込み";
+    if(page==="collection"){
+      body.innerHTML=`
+        ${filterSheetField("年代",`<select id="sheetYear">${yearOptions(state.yearFilter)}</select>`)}
+        ${filterSheetField("カテゴリ",`<select id="sheetCategory"><option value="">すべて</option><option value="通常" ${state.category==="通常"?"selected":""}>通常</option><option value="イベント" ${state.category==="イベント"?"selected":""}>イベント</option><option value="コラボ" ${state.category==="コラボ"?"selected":""}>コラボ</option></select>`)}
+        ${state.mode!=="all"?filterSheetField("所持状況",`<select id="sheetOwnership"><option value="">すべて</option><option value="owned" ${state.ownership==="owned"?"selected":""}>所持ありのみ</option><option value="unowned" ${state.ownership==="unowned"?"selected":""}>未所持のみ</option></select>`):""}
+        <div class="sheet-toggle-group">${filterSheetToggle("sheetNew","NEWのみ",state.newFilter==="new")}${state.mode==="all"?filterSheetToggle("sheetOshi","推しだけ表示",state.oshiOnly):""}</div>`;
+    }else if(page==="wishlist"||page==="trade"){
+      const selectedYear=page==="wishlist"?state.wishlistYear:state.tradeYear;
+      body.innerHTML=`
+        ${filterSheetField("メンバー",`<select id="sheetMember">${pageMemberOptions()}</select>`)}
+        ${filterSheetField("年代",`<select id="sheetYear">${yearOptions(selectedYear)}</select>`)}`;
+    }else{
+      body.innerHTML=`
+        ${filterSheetField("メンバー",`<select id="sheetMissingMember">${missingMemberOptions()}</select>`)}
+        ${filterSheetField("ポジション",`<select id="sheetPosition">${missingPositionOptions()}</select>`)}
+        ${filterSheetField("年代",`<select id="sheetYear">${yearOptions(state.missingYear)}</select>`)}
+        <div class="sheet-toggle-group">${filterSheetToggle("sheetOshi","推しだけ表示",state.oshiOnly)}</div>`;
+    }
+    openUtilitySheet("filterSheetOverlay");
+  }
+  function clearFilterSheet(){
+    if(activeFilterPage==="collection"){
+      ["sheetYear","sheetCategory","sheetOwnership"].forEach(id=>{const el=$(id);if(el)el.value=""});
+      ["sheetNew","sheetOshi"].forEach(id=>{const el=$(id);if(el)el.checked=false});
+    }else if(activeFilterPage==="wishlist"||activeFilterPage==="trade"){
+      const member=$("sheetMember"),year=$("sheetYear");if(member)member.value="";if(year)year.value="";
+    }else{
+      const member=$("sheetMissingMember"),position=$("sheetPosition"),year=$("sheetYear"),oshi=$("sheetOshi");
+      if(member)member.value="";if(position)position.value="";if(year)year.value="";if(oshi)oshi.checked=false;
+    }
+  }
+  function applyFilterSheet(){
+    if(activeFilterPage==="collection"){
+      state.yearFilter=$("sheetYear")?.value||"";
+      state.category=$("sheetCategory")?.value||"";
+      state.ownership=$("sheetOwnership")?.value||"";
+      state.newFilter=$("sheetNew")?.checked?"new":"";
+      if($("sheetOshi"))state.oshiOnly=$("sheetOshi").checked;
+      savePreferences();closeUtilitySheet("filterSheetOverlay");renderCollection();
+    }else if(activeFilterPage==="wishlist"){
+      state.pageMemberId=$("sheetMember")?.value||"";
+      state.wishlistYear=$("sheetYear")?.value||"";
+      savePreferences();closeUtilitySheet("filterSheetOverlay");renderWishlist();
+    }else if(activeFilterPage==="trade"){
+      state.pageMemberId=$("sheetMember")?.value||"";
+      state.tradeYear=$("sheetYear")?.value||"";
+      savePreferences();closeUtilitySheet("filterSheetOverlay");renderTrade();
+    }else{
+      state.missingMemberId=$("sheetMissingMember")?.value||"";
+      state.missingPositionId=$("sheetPosition")?.value||"";
+      state.missingYear=$("sheetYear")?.value||"";
+      state.oshiOnly=$("sheetOshi")?.checked||false;
+      savePreferences();closeUtilitySheet("filterSheetOverlay");renderMissing();
+    }
+  }
+  let activeSortPage="collection";
+  function openSortSheet(page="collection"){
+    activeSortPage=page;
+    const current=page==="collection"?state.sort:page==="wishlist"?state.wishlistOrder:page==="trade"?state.tradeOrder:state.missingEventOrder;
+    const choices=page==="collection"?[["desc","新しい順"],["asc","古い順"],["new","NEW優先"]]:[["desc","新しい順"],["asc","古い順"]];
+    $("sortSheetBody").innerHTML=`<div class="sort-choice-list">${choices.map(([value,label])=>`<button class="sort-choice ${current===value?"selected":""}" data-sort-value="${value}"><span>${label}</span><i>${current===value?"✓":""}</i></button>`).join("")}</div>`;
+    document.querySelectorAll("[data-sort-value]").forEach(button=>button.onclick=()=>applySortChoice(button.dataset.sortValue));
+    openUtilitySheet("sortSheetOverlay");
+  }
+  function applySortChoice(value){
+    if(activeSortPage==="collection"){state.sort=value;savePreferences();renderCollection()}
+    if(activeSortPage==="wishlist"){state.wishlistOrder=value;savePreferences();renderWishlist()}
+    if(activeSortPage==="trade"){state.tradeOrder=value;savePreferences();renderTrade()}
+    if(activeSortPage==="missing"){state.missingEventOrder=value;savePreferences();renderMissing()}
+    closeUtilitySheet("sortSheetOverlay");
+  }
+  function openUtilitySheet(id){
+    const overlay=$(id);overlay.classList.remove("hidden");overlay.setAttribute("aria-hidden","false");document.body.classList.add("utility-sheet-open");
+  }
+  function closeUtilitySheet(id){
+    const overlay=$(id);if(!overlay)return;
+    const sheet=overlay.querySelector(".utility-sheet");
+    if(sheet){sheet.classList.remove("swiping");sheet.style.transform=""}
+    overlay.style.background="";
+    overlay.classList.add("hidden");overlay.setAttribute("aria-hidden","true");document.body.classList.remove("utility-sheet-open");
+  }
+  function setupUtilitySheetSwipe(id){
+    const overlay=$(id),sheet=overlay?.querySelector(".utility-sheet"),body=overlay?.querySelector(".utility-sheet-body");
+    if(!overlay||!sheet||!body)return;
+    let startY=0,startX=0,deltaY=0,active=false;
+    const reset=()=>{active=false;deltaY=0;sheet.classList.remove("swiping");sheet.style.transform="";overlay.style.background=""};
+    sheet.addEventListener("touchstart",event=>{
+      if(event.touches.length!==1||body.scrollTop>0)return;
+      startY=event.touches[0].clientY;startX=event.touches[0].clientX;deltaY=0;active=true;
+    },{passive:true});
+    sheet.addEventListener("touchmove",event=>{
+      if(!active||event.touches.length!==1)return;
+      const dy=event.touches[0].clientY-startY,dx=Math.abs(event.touches[0].clientX-startX);
+      if(dy<=0||dy<dx)return;
+      deltaY=Math.min(dy,320);sheet.classList.add("swiping");sheet.style.transform=`translateY(${deltaY}px)`;
+      overlay.style.background=`rgba(48,29,39,${Math.max(.08,.42-deltaY/700)})`;event.preventDefault();
+    },{passive:false});
+    sheet.addEventListener("touchend",()=>{
+      if(!active)return;
+      if(deltaY>=90){sheet.style.transform="translateY(110%)";setTimeout(()=>{closeUtilitySheet(id);reset()},140)}
+      else reset();
+    },{passive:true});
+    sheet.addEventListener("touchcancel",reset,{passive:true});
+  }
   function filtered(){
     const q=normalizeText(state.search);
     const base=state.mode==="member"?eligibleEventsForMember(MEMBERS.find(m=>m.id===state.memberId)):EVENTS;
@@ -227,18 +505,37 @@ function openMember(id){
     const filter=document.getElementById("oshiFilter");
     if(filter)filter.value="";
   }
-  function openManager(){$("homeScreen").classList.add("hidden");$("managerScreen").classList.remove("hidden");$("ownershipFilterRow").classList.toggle("hidden",state.mode==="all");showPage("collection");window.scrollTo(0,0)}
+  function openManager(){$("homeScreen").classList.add("hidden");$("managerScreen").classList.remove("hidden");showPage("collection",true)}
   function updateHeader(){const m=MEMBERS.find(x=>x.id===state.memberId);$("memberTitle").textContent=state.mode==="all"?"🌈 全メンバー":`${m.emoji} ${m.name}`;const pageLabel=state.page==="collection"?"生写真コレクション":state.page==="stats"?"統計・年代別コンプ率":state.page==="wishlist"?"欲しい生写真一覧":state.page==="trade"?"ダブり・提供可能一覧":state.page==="missing"?"未所持一覧":state.page==="oshi"?"推しカスタマイズ":state.page==="help"?"使い方":state.page==="about"?"バージョン情報":"バックアップ・復元";$("memberSub").textContent=state.mode==="member"&&isGraduated(m)?`${m.graduation}｜${pageLabel}`:pageLabel}
-  function showPage(page){if($("homeScreen").classList.contains("hidden")===false){state.mode="all";state.memberId=null;theme(null);$("homeScreen").classList.add("hidden");$("managerScreen").classList.remove("hidden")}state.page=page;["collection","stats","wishlist","trade","missing","oshi","backup","help","about"].forEach(p=>$(p+"Page").classList.toggle("hidden",p!==page));$("managerTools").classList.toggle("hidden",page!=="collection");document.querySelectorAll(".bottom-nav button").forEach(b=>b.classList.toggle("active",b.dataset.page===page));updateHeader();if(page==="collection")renderCollection();if(page==="stats")renderStats();if(page==="wishlist")renderWishlist();if(page==="trade")renderTrade();if(page==="missing")renderMissing();if(page==="oshi")renderOshi();if(page==="backup")renderBackup();if(page==="help")renderHelp();if(page==="about")renderAbout();window.scrollTo(0,0)}
+  function showPage(page,skipScrollSave=false){
+    if(!skipScrollSave)saveScrollPosition();
+    if($("homeScreen").classList.contains("hidden")===false){state.mode="all";state.memberId=null;theme(null);$("homeScreen").classList.add("hidden");$("managerScreen").classList.remove("hidden")}
+    state.page=page;
+    ["collection","stats","wishlist","trade","missing","oshi","backup","help","about"].forEach(p=>$(p+"Page").classList.toggle("hidden",p!==page));
+    $("managerTools").classList.toggle("hidden",page!=="collection");
+    document.querySelectorAll(".bottom-nav button").forEach(b=>b.classList.toggle("active",b.dataset.page===page));
+    updateHeader();
+    if(page==="collection")renderCollection();
+    if(page==="stats")renderStats();
+    if(page==="wishlist")renderWishlist();
+    if(page==="trade")renderTrade();
+    if(page==="missing")renderMissing();
+    if(page==="oshi")renderOshi();
+    if(page==="backup")renderBackup();
+    if(page==="help")renderHelp();
+    if(page==="about")renderAbout();
+    restoreScrollPosition();
+  }
   function statsFor(ms,evs=EVENTS){let total=0,types=0,signed=0,wanted=0,possible=0;ms.forEach(m=>evs.filter(e=>eventAvailableForMember(e,m)).forEach(e=>POSITIONS.forEach(p=>{possible++;const n=getCount(e.id,m.id,p.id);total+=n;if(n>0)types++;if(isSigned(e.id,m.id,p.id))signed++;if(isWanted(e.id,m.id,p.id))wanted++})));return{total,types,signed,wanted,possible,rate:possible?Math.round(types/possible*100):0}}
   function updateSummary(list){const s=statsFor(scopeMembers());$("ownedTotal").textContent=s.total;$("ownedTypes").textContent=s.types;$("signedTotal").textContent=s.signed}
   function complete(e,m){return POSITIONS.every(p=>getCount(e.id,m.id,p.id)>0)}
   function renderPositionRow(e,m,p,compact=false){const row=document.createElement("div");row.className=compact?"mini-pos":"pos-row";row.innerHTML=compact?`<div class="mini-label">${p.name}</div><div class="mini-actions"><button class="minus">−</button><b class="num">${getCount(e.id,m.id,p.id)}</b><button class="plus">＋</button><button class="wide sign ${isSigned(e.id,m.id,p.id)?"on":""}">✍️</button><button class="wide want ${isWanted(e.id,m.id,p.id)?"on":""}">♡</button></div>`:`<span>${p.name}</span><div class="pos-actions"><button class="icon-btn want ${isWanted(e.id,m.id,p.id)?"on":""}">♡</button><button class="icon-btn sign ${isSigned(e.id,m.id,p.id)?"on":""}">✍️</button><div class="counter"><button class="minus">−</button><span class="count num">${getCount(e.id,m.id,p.id)}</span><button class="plus">＋</button></div></div>`;
   row.querySelector(".minus").onclick=()=>{setCount(e.id,m.id,p.id,Math.max(0,getCount(e.id,m.id,p.id)-1));renderCollection()};row.querySelector(".plus").onclick=()=>{setCount(e.id,m.id,p.id,getCount(e.id,m.id,p.id)+1);renderCollection()};row.querySelector(".sign").onclick=()=>{toggleSign(e.id,m.id,p.id);renderCollection()};row.querySelector(".want").onclick=()=>{toggleWant(e.id,m.id,p.id);renderCollection()};return row}
-  function renderMemberCard(e,m){const card=document.createElement("article");card.className="event-card";card.innerHTML=`<div class="event-head"><div class="event-topline"><div><div class="period">${esc(e.period||e.officialName)}</div><div class="work">${esc(e.work)}</div></div><div class="badges"><span class="badge">${esc(e.category)}</span>${isNewEvent(e)?'<span class="badge new-badge">NEW</span>':''}${complete(e,m)?'<span class="badge complete">COMPLETE</span>':''}</div></div></div><div class="member-line">${m.emoji} ${m.name}</div><div class="positions"></div><div class="event-footer"></div>`;
+  function renderMemberCard(e,m){const card=document.createElement("article");card.className="event-card";card.dataset.eventId=e.id;card.innerHTML=`<div class="event-head"><div class="event-topline"><div><div class="period">${esc(e.period||e.officialName)}</div><div class="work">${esc(e.work)}</div></div><div class="badges"><span class="badge">${esc(e.category)}</span>${isNewEvent(e)?'<span class="badge new-badge">NEW</span>':''}${complete(e,m)?'<span class="badge complete">COMPLETE</span>':''}</div></div></div><div class="member-line">${m.emoji} ${m.name}</div><div class="positions"></div><div class="event-footer"></div>`;
   POSITIONS.forEach(p=>card.querySelector(".positions").appendChild(renderPositionRow(e,m,p)));const f=card.querySelector(".event-footer");if(e.officialUrl)f.innerHTML=`<span></span><a href="${e.officialUrl}" target="_blank" rel="noopener noreferrer">公式サイト ↗</a>`;else f.remove();return card}
-  function renderAllCard(e){const card=document.createElement("article");card.className="event-card";const eligible=eligibleMembersForEvent(e),owned=eligible.reduce((t,m)=>t+POSITIONS.reduce((s,p)=>s+getCount(e.id,m.id,p.id),0),0),want=eligible.reduce((t,m)=>t+POSITIONS.filter(p=>isWanted(e.id,m.id,p.id)).length,0),comp=eligible.filter(m=>complete(e,m)).length;card.innerHTML=`<div class="event-head"><div class="event-topline"><div><div class="period">${esc(e.period||e.officialName)}</div><div class="work">${esc(e.work)}</div><div class="all-summary">所持 ${owned}枚 ／ 欲しい ${want}種 ／ コンプ ${comp}/${eligible.length}人</div></div><div class="badges">${isNewEvent(e)?'<span class="badge new-badge">NEW</span>':''}<span class="badge">${esc(e.category)}</span></div></div></div><div class="event-footer"><button class="expand-btn">${state.expanded[e.id]?"閉じる":`${eligible.length}人分を開く`}</button>${e.officialUrl?`<a href="${e.officialUrl}" target="_blank" rel="noopener noreferrer">公式サイト ↗</a>`:""}</div>`;card.querySelector(".expand-btn").onclick=()=>{state.expanded[e.id]=!state.expanded[e.id];renderCollection()};if(state.expanded[e.id]){const box=document.createElement("div");box.className="all-members";eligible.forEach(m=>{const r=document.createElement("div");r.className="all-row";r.innerHTML=`<div class="all-name">${m.emoji} ${m.name}${isGraduated(m)?'<span class="mini-graduated">卒業</span>':''}</div><div class="all-pos-grid"></div>`;POSITIONS.forEach(p=>r.querySelector(".all-pos-grid").appendChild(renderPositionRow(e,m,p,true)));box.appendChild(r)});card.insertBefore(box,card.querySelector(".event-footer"))}return card}
+  function renderAllCard(e){const card=document.createElement("article");card.className="event-card";card.dataset.eventId=e.id;const eligible=eligibleMembersForEvent(e),owned=eligible.reduce((t,m)=>t+POSITIONS.reduce((s,p)=>s+getCount(e.id,m.id,p.id),0),0),want=eligible.reduce((t,m)=>t+POSITIONS.filter(p=>isWanted(e.id,m.id,p.id)).length,0),comp=eligible.filter(m=>complete(e,m)).length;card.innerHTML=`<div class="event-head"><div class="event-topline"><div><div class="period">${esc(e.period||e.officialName)}</div><div class="work">${esc(e.work)}</div><div class="all-summary">所持 ${owned}枚 ／ 欲しい ${want}種 ／ コンプ ${comp}/${eligible.length}人</div></div><div class="badges">${isNewEvent(e)?'<span class="badge new-badge">NEW</span>':''}<span class="badge">${esc(e.category)}</span></div></div></div><div class="event-footer"><button class="expand-btn">${state.expanded[e.id]?"閉じる":`${eligible.length}人分を開く`}</button>${e.officialUrl?`<a href="${e.officialUrl}" target="_blank" rel="noopener noreferrer">公式サイト ↗</a>`:""}</div>`;card.querySelector(".expand-btn").onclick=()=>{state.expanded[e.id]=!state.expanded[e.id];renderCollection()};if(state.expanded[e.id]){const box=document.createElement("div");box.className="all-members";eligible.forEach(m=>{const r=document.createElement("div");r.className="all-row";r.innerHTML=`<div class="all-name">${m.emoji} ${m.name}${isGraduated(m)?'<span class="mini-graduated">卒業</span>':''}</div><div class="all-pos-grid"></div>`;POSITIONS.forEach(p=>r.querySelector(".all-pos-grid").appendChild(renderPositionRow(e,m,p,true)));box.appendChild(r)});card.insertBefore(box,card.querySelector(".event-footer"))}return card}
   function renderCollection(){
+    renderCollectionFilterUi();
     const list=filtered();
     updateSummary(list);
     $("eventList").innerHTML="";
@@ -246,7 +543,7 @@ function openMember(id){
       $("eventList").innerHTML=`<div class="empty-state"><span>🔍</span><h3>該当するデータがありません</h3><p>検索条件やフィルターを変更してください。</p><button id="resetFiltersButton">条件をリセット</button></div>`;
       document.getElementById("resetFiltersButton").onclick=()=>{
         state.category="";state.yearFilter="";state.sort="desc";state.search="";state.ownership="";state.newFilter="";state.oshiOnly=false;savePreferences();
-        $("searchInput").value="";$("categoryFilter").value="";$("yearFilter").value="";$("sortOrder").value="desc";$("ownershipFilter").value="";$("newFilter").value="";$("oshiFilter").value="";
+        $("searchInput").value="";
         renderCollection();
       };
       return;
@@ -274,7 +571,7 @@ function openMember(id){
     })));
     return [...map.values()]
       .filter(x=>!state.wishlistYear||yearOf(x.e)===state.wishlistYear)
-      .sort((a,b)=>b.e.sort-a.e.sort);
+      .sort((a,b)=>state.wishlistOrder==="asc"?a.e.sort-b.e.sort:b.e.sort-a.e.sort);
   }
   function groupedTradeItems(){
     const map=new Map();
@@ -287,7 +584,7 @@ function openMember(id){
     })));
     return [...map.values()]
       .filter(x=>!state.tradeYear||yearOf(x.e)===state.tradeYear)
-      .sort((a,b)=>b.e.sort-a.e.sort);
+      .sort((a,b)=>state.tradeOrder==="asc"?a.e.sort-b.e.sort:b.e.sort-a.e.sort);
   }
   function renderGroupedWantItem(x){
     const tags=x.positions.map(v=>`<span class="pill">♡ ${v.p.name}${v.count>0?`（所持 ${v.count}枚）`:""}</span>`).join("");
@@ -308,16 +605,14 @@ function openMember(id){
   function renderWishlist(){
     const groups=groupedWantedItems();
     const typeCount=groups.reduce((sum,g)=>sum+g.positions.length,0);
-    $("wishlistPage").innerHTML=`<div class="page-head"><h2>♡ 欲しい生写真一覧</h2><p>${groups.length}イベント・${typeCount}種類を登録中</p></div><div class="page-filter list-filter-grid"><select id="pageMemberFilter">${pageMemberOptions()}</select><select id="wishlistYearFilter">${yearOptions(state.wishlistYear)}</select></div><div class="list-page">${groups.length?groups.map(renderGroupedWantItem).join(""):'<div class="empty">条件に該当する欲しい生写真はありません。</div>'}</div>`;
-    bindPageMemberFilter();
-    document.getElementById("wishlistYearFilter").onchange=e=>{state.wishlistYear=e.target.value;savePreferences();renderWishlist()};
+    $("wishlistPage").innerHTML=`<div class="page-head"><h2>♡ 欲しい生写真一覧</h2><p>${groups.length}イベント・${typeCount}種類を登録中</p></div>${listToolbarHtml("wishlist")}<div class="list-page">${groups.length?groups.map(renderGroupedWantItem).join(""):'<div class="empty">条件に該当する欲しい生写真はありません。</div>'}</div>`;
+    bindListToolbar("wishlist");
   }
   function renderTrade(){
     const groups=groupedTradeItems();
     const typeCount=groups.reduce((sum,g)=>sum+g.positions.length,0);
-    $("tradePage").innerHTML=`<div class="page-head"><h2>🔄 ダブり・提供可能一覧</h2><p>${groups.length}イベント・${typeCount}種類を表示中</p></div><div class="page-filter list-filter-grid"><select id="pageMemberFilter">${pageMemberOptions()}</select><select id="tradeYearFilter">${yearOptions(state.tradeYear)}</select></div><div class="list-page">${groups.length?groups.map(renderGroupedTradeItem).join(""):'<div class="empty">条件に該当する提供可能データはありません。</div>'}</div>`;
-    bindPageMemberFilter();
-    document.getElementById("tradeYearFilter").onchange=e=>{state.tradeYear=e.target.value;savePreferences();renderTrade()};
+    $("tradePage").innerHTML=`<div class="page-head"><h2>🔄 ダブり・提供可能一覧</h2><p>${groups.length}イベント・${typeCount}種類を表示中</p></div>${listToolbarHtml("trade")}<div class="list-page">${groups.length?groups.map(renderGroupedTradeItem).join(""):'<div class="empty">条件に該当する提供可能データはありません。</div>'}</div>`;
+    bindListToolbar("trade");
   }
 
 
@@ -350,17 +645,8 @@ function openMember(id){
     const typeCount=memberGroups.reduce((sum,g)=>sum+g.items.reduce((s,x)=>s+x.positions.length,0),0);
     $("missingPage").innerHTML=`
       <div class="page-head"><h2>🔎 未所持一覧</h2><p>${memberGroups.length}人・${eventCount}イベント・${typeCount}種類が未所持です</p></div>
-      <div class="missing-controls">
-        <select id="missingMemberFilter">${missingMemberOptions()}</select>
-        <select id="missingPositionFilter">${missingPositionOptions()}</select>
-        <select id="missingYearFilter">${yearOptions(state.missingYear)}</select>
-        <button id="missingOshiToggle" class="oshi-toggle ${state.oshiOnly?"on":""}">👑 推しだけ</button>
-        <select id="missingEventOrder">
-          <option value="desc" ${state.missingEventOrder==="desc"?"selected":""}>イベント：新しい順</option>
-          <option value="asc" ${state.missingEventOrder==="asc"?"selected":""}>イベント：古い順</option>
-        </select>
-        <div class="searchbox missing-search"><span>🔍</span><input id="missingSearchInput" type="search" value="${esc(state.missingSearch)}" placeholder="年月・楽曲名・ツアー名など"></div>
-      </div>
+      <div class="searchbox missing-search"><span>🔍</span><input id="missingSearchInput" type="search" value="${esc(state.missingSearch)}" placeholder="年月・楽曲名・ツアー名など"></div>
+      ${listToolbarHtml("missing")}
       <div class="missing-member-list">${memberGroups.length?memberGroups.map(group=>`
         <section class="missing-member-section">
           <div class="missing-member-head" style="--member-accent:${group.m.accent};--member-soft:${group.m.soft}">
@@ -375,11 +661,7 @@ function openMember(id){
             </div>`).join("")}
           </div>
         </section>`).join(""):'<div class="empty">条件に該当する未所持データはありません。</div>'}</div>`;
-    document.getElementById("missingMemberFilter").onchange=e=>{state.missingMemberId=e.target.value;savePreferences();renderMissing()};
-    document.getElementById("missingPositionFilter").onchange=e=>{state.missingPositionId=e.target.value;savePreferences();renderMissing()};
-    document.getElementById("missingYearFilter").onchange=e=>{state.missingYear=e.target.value;savePreferences();renderMissing()};
-    document.getElementById("missingOshiToggle").onclick=()=>{state.oshiOnly=!state.oshiOnly;savePreferences();renderMissing()};
-    document.getElementById("missingEventOrder").onchange=e=>{state.missingEventOrder=e.target.value;savePreferences();renderMissing()};
+    bindListToolbar("missing");
     document.getElementById("missingSearchInput").oninput=e=>{state.missingSearch=e.target.value;savePreferences();renderMissing()};
   }
 
@@ -444,7 +726,7 @@ function openMember(id){
       <div class="guide-list">
         <section class="panel guide-card"><span>1</span><div><h3>メンバーを選ぶ</h3><p>TOPからメンバーを選択します。「全メンバー」ではイベント単位でまとめて確認できます。</p></div></section>
         <section class="panel guide-card"><span>2</span><div><h3>生写真を登録する</h3><p>ヨリ・チュウ・ヒキの「＋」「−」で所持枚数を変更します。♡は欲しい、✍️は直筆です。</p></div></section>
-        <section class="panel guide-card"><span>3</span><div><h3>一覧を絞り込む</h3><p>検索・年代・カテゴリ・新着・所持状況・推しだけ表示を組み合わせられます。選択内容は自動保存されます。</p></div></section>
+        <section class="panel guide-card"><span>3</span><div><h3>一覧を絞り込む</h3><p>検索欄と「絞り込み」「並び順」を使います。選択中の条件はチップで表示され、個別に解除できます。</p></div></section>
         <section class="panel guide-card"><span>4</span><div><h3>未所持・提供可能を確認する</h3><p>未所持一覧はメンバーの五十音順、各メンバー内はイベント順です。2枚目以降は提供可能として表示されます。</p></div></section>
         <section class="panel guide-card"><span>5</span><div><h3>推しを設定する</h3><p>最推し・推し・気になるの3段階です。TOP優先表示や推しだけの統計・未所持確認に使えます。</p></div></section>
         <section class="panel guide-card important"><span>6</span><div><h3>定期的にバックアップする</h3><p>端末変更、Safariのデータ削除、ブラウザ変更に備えてJSONを保存してください。復元前には日時と件数を確認できます。</p></div></section>
@@ -467,8 +749,8 @@ function openMember(id){
         <div class="panel"><b>${graduated}</b><span>卒業メンバー</span></div>
       </div>
       <div class="panel about-notes">
-        <h3>Ver1.0の主な機能</h3>
-        <p>所持数・直筆・欲しい・提供可能・統計・未所持・卒業メンバー・推し設定・バックアップ・PWA・オフライン表示に対応しています。</p>
+        <h3>Ver1.02の主な機能</h3>
+        <p>統合フィルター、条件チップ、自動バックアップ履歴、復元プレビュー、データ更新ツール、PWA・オフライン表示に対応しています。</p>
         <h3>保存について</h3>
         <p>登録内容はこのブラウザ内に保存されます。別端末へ移す場合は、バックアップ画面からJSONファイルを保存してください。</p>
       </div>`;
@@ -485,33 +767,29 @@ function openMember(id){
     const d=new Date(),pad=n=>String(n).padStart(2,"0");
     return `equal-love-photo-backup-${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}.json`;
   }
-  function exportBackup(){
-    const payload={
-      app:"equal-love-photo-manager",
-      backupVersion:1,
-      exportedAt:new Date().toISOString(),
-      data:{
-        counts:state.counts,
-        signs:state.signs,
-        wants:state.wants,
-        oshis:state.oshis,
-        preferences:{
-          memberId:state.memberId,
-          category:state.category,
-          sort:state.sort,
-          search:state.search,
-          ownership:state.ownership,
-          newFilter:state.newFilter,
-          oshiOnly:state.oshiOnly,
-          pageMemberId:state.pageMemberId,
-          missingMemberId:state.missingMemberId,
-          missingPositionId:state.missingPositionId,
-          missingEventOrder:state.missingEventOrder,
-          missingSearch:state.missingSearch
-        }
-      },
-      sourceVersion:APP_CONFIG.version
+  function currentPreferences(){
+    return {
+      memberId:state.memberId,category:state.category,yearFilter:state.yearFilter,sort:state.sort,search:state.search,
+      ownership:state.ownership,newFilter:state.newFilter,oshiOnly:state.oshiOnly,pageMemberId:state.pageMemberId,
+      wishlistYear:state.wishlistYear,tradeYear:state.tradeYear,wishlistOrder:state.wishlistOrder,tradeOrder:state.tradeOrder,
+      missingMemberId:state.missingMemberId,missingPositionId:state.missingPositionId,missingYear:state.missingYear,
+      missingEventOrder:state.missingEventOrder,missingSearch:state.missingSearch
     };
+  }
+  function buildBackupPayload(reason="manual"){
+    return {
+      app:"equal-love-photo-manager",
+      backupVersion:2,
+      schemaVersion:SCHEMA_VERSION,
+      reason,
+      exportedAt:new Date().toISOString(),
+      sourceVersion:APP_CONFIG.version,
+      dataVersion:APP_CONFIG.dataVersion||APP_CONFIG.dataUpdatedAt||"",
+      data:{counts:state.counts,signs:state.signs,wants:state.wants,oshis:state.oshis,preferences:currentPreferences()}
+    };
+  }
+  function exportBackup(){
+    const payload=buildBackupPayload("manual");
     const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});
     const url=URL.createObjectURL(blob);
     const a=document.createElement("a");
@@ -523,6 +801,62 @@ function openMember(id){
     setTimeout(()=>URL.revokeObjectURL(url),1000);
     const msg=document.getElementById("backupMessage");
     if(msg){msg.textContent="バックアップファイルを保存しました。";msg.className="backup-message success"}
+  }
+  function getAutoBackups(){
+    try{
+      const items=JSON.parse(localStorage.getItem(HISTORY_KEY)||"[]");
+      return Array.isArray(items)?items.filter(item=>item&&item.app==="equal-love-photo-manager"):[];
+    }catch(error){return []}
+  }
+  function saveAutoBackup(reason){
+    const history=getAutoBackups();
+    history.unshift(buildBackupPayload(reason));
+    const max=Math.max(1,Number(APP_CONFIG.maxAutoBackups||3));
+    localStorage.setItem(HISTORY_KEY,JSON.stringify(history.slice(0,max)));
+    return history[0];
+  }
+  function clearAutoBackups(){
+    if(confirm("端末内の自動バックアップ履歴をすべて削除しますか？")){
+      localStorage.removeItem(HISTORY_KEY);renderBackup();
+    }
+  }
+  function migrateStorageMap(map){
+    const migrations=APP_CONFIG.eventIdMigrations&&typeof APP_CONFIG.eventIdMigrations==="object"?APP_CONFIG.eventIdMigrations:{};
+    const migrated={};
+    let migrationCount=0;
+    Object.entries(map||{}).forEach(([key,value])=>{
+      const parts=key.split("__");
+      if(parts.length!==3){migrated[key]=value;return}
+      const target=migrations[parts[0]];
+      if(typeof target==="string"&&target&&target!==parts[0]){
+        parts[0]=target;migrationCount++;
+      }
+      migrated[parts.join("__")]=value;
+    });
+    return {data:migrated,migrationCount};
+  }
+  function applyBackupData(backup){
+    const counts=migrateStorageMap(backup.counts);
+    const signs=migrateStorageMap(backup.signs);
+    const wants=migrateStorageMap(backup.wants);
+    localStorage.setItem(COUNT_KEY,JSON.stringify(counts.data));
+    localStorage.setItem(SIGN_KEY,JSON.stringify(signs.data));
+    localStorage.setItem(WANT_KEY,JSON.stringify(wants.data));
+    localStorage.setItem(OSHI_KEY,JSON.stringify(backup.oshis||{}));
+    localStorage.setItem(PREF_KEY,JSON.stringify(backup.preferences||{}));
+    return counts.migrationCount+signs.migrationCount+wants.migrationCount;
+  }
+  function restoreAutoBackup(index){
+    const item=getAutoBackups()[Number(index)];
+    if(!item)return;
+    try{
+      const backup=validateBackupPayload(item);
+      if(!confirm(`自動バックアップ（${formatBackupDate(backup.exportedAt)}）を復元しますか？`))return;
+      saveAutoBackup("自動履歴から復元する直前");
+      const migrated=applyBackupData(backup);
+      alert(`復元しました。${migrated?`旧event_idを${migrated}件移行しました。`:""}画面を再読み込みします。`);
+      location.reload();
+    }catch(error){alert(`復元できませんでした：${error.message}`)}
   }
   function validObject(value){return value&&typeof value==="object"&&!Array.isArray(value)}
   function validDateString(value){return typeof value==="string"&&!Number.isNaN(Date.parse(value))}
@@ -546,6 +880,8 @@ function openMember(id){
     if(!validObject(payload))throw new Error("JSONの中身が正しくありません");
     if(payload.app!=="equal-love-photo-manager")throw new Error("別のアプリのバックアップです");
     if(!Number.isInteger(Number(payload.backupVersion)))throw new Error("バックアップのバージョンが不正です");
+    const schemaVersion=Number(payload.schemaVersion||1);
+    if(!Number.isInteger(schemaVersion)||schemaVersion<1||schemaVersion>SCHEMA_VERSION)throw new Error("対応していないデータ形式です");
     if(!validDateString(payload.exportedAt))throw new Error("バックアップ作成日時がありません");
     if(!validObject(payload.data))throw new Error("バックアップデータがありません");
     return {
@@ -555,7 +891,9 @@ function openMember(id){
       wants:sanitizeBackupMap(payload.data.wants,"欲しい"),
       oshis:validObject(payload.data.oshis)?Object.fromEntries(Object.entries(payload.data.oshis).filter(([id,rank])=>MEMBERS.some(m=>m.id===id)&&["favorite","oshi","interest"].includes(rank))):{},
       preferences:validObject(payload.data.preferences)?payload.data.preferences:{},
-      sourceVersion:String(payload.sourceVersion||"不明")
+      sourceVersion:String(payload.sourceVersion||"不明"),
+      schemaVersion,
+      dataVersion:String(payload.dataVersion||"不明")
     };
   }
   function formatBackupDate(date){
@@ -613,7 +951,7 @@ function openMember(id){
         pendingBackup=validateBackupPayload(payload);
         preview.innerHTML=`
           <div class="backup-preview-title">✅ バックアップを確認しました</div>
-          <div class="backup-preview-date">作成日時：${formatBackupDate(pendingBackup.exportedAt)}\n作成元：Ver ${pendingBackup.sourceVersion}</div>
+          <div class="backup-preview-date">作成日時：${formatBackupDate(pendingBackup.exportedAt)}\n作成元：Ver ${pendingBackup.sourceVersion}\nデータ形式：Schema ${pendingBackup.schemaVersion}\nマスターデータ：${esc(pendingBackup.dataVersion)}</div>
           <div class="backup-preview-counts">
             <span>所持 ${Object.keys(pendingBackup.counts).length}件</span>
             <span>直筆 ${Object.keys(pendingBackup.signs).length}件</span>
@@ -644,12 +982,9 @@ function openMember(id){
     if(!pendingBackup)return;
     const summary=`作成日時：${formatBackupDate(pendingBackup.exportedAt)}\n作成元：Ver ${pendingBackup.sourceVersion}\n所持 ${Object.keys(pendingBackup.counts).length}件\n直筆 ${Object.keys(pendingBackup.signs).length}件\n欲しい ${Object.keys(pendingBackup.wants).length}件\n推し設定 ${Object.keys(pendingBackup.oshis||{}).length}人`;
     if(!confirm(`現在のデータを上書きします。\n\n${summary}\n\n復元しますか？`))return;
-    localStorage.setItem(COUNT_KEY,JSON.stringify(pendingBackup.counts));
-    localStorage.setItem(SIGN_KEY,JSON.stringify(pendingBackup.signs));
-    localStorage.setItem(WANT_KEY,JSON.stringify(pendingBackup.wants));
-    localStorage.setItem(OSHI_KEY,JSON.stringify(pendingBackup.oshis||{}));
-    localStorage.setItem(PREF_KEY,JSON.stringify(pendingBackup.preferences||{}));
-    alert("復元が完了しました。画面を再読み込みします。");
+    saveAutoBackup("ファイル復元の直前");
+    const migrated=applyBackupData(pendingBackup);
+    alert(`復元が完了しました。${migrated?`旧event_idを${migrated}件移行しました。`:""}画面を再読み込みします。`);
     location.reload();
   }
   function deleteAllUserData(){
@@ -660,7 +995,9 @@ function openMember(id){
       if(msg){msg.textContent="入力が一致しなかったため、削除を中止しました。";msg.className="backup-message error"}
       return;
     }
-    [COUNT_KEY,SIGN_KEY,WANT_KEY,OSHI_KEY,PREF_KEY].forEach(key=>localStorage.removeItem(key));
+    saveAutoBackup("全削除の直前");
+    [COUNT_KEY,SIGN_KEY,WANT_KEY,OSHI_KEY,PREF_KEY,RECENT_KEY].forEach(key=>localStorage.removeItem(key));
+    sessionStorage.removeItem(SCROLL_KEY);
     alert("すべての保存データを削除しました。画面を再読み込みします。");
     location.reload();
   }
@@ -692,6 +1029,19 @@ function openMember(id){
         <div id="backupPreview" class="backup-preview"></div>
         <div class="backup-warning">⚠️ 壊れたJSON・別形式のJSON・不正な値を含むファイルは復元できません。</div>
       </div>
+      <div class="panel backup-panel">
+        <div class="backup-icon">🕘</div>
+        <h3>自動バックアップ履歴</h3>
+        <p>復元・全削除の直前に、現在の状態を端末内へ最大${APP_CONFIG.maxAutoBackups||3}件保存します。</p>
+        <div class="auto-backup-list">${getAutoBackups().length?getAutoBackups().map((item,index)=>`<div class="auto-backup-row"><div><b>${formatBackupDate(new Date(item.exportedAt))}</b><span>${esc(item.reason||"自動保存")}｜所持 ${Object.keys(item.data?.counts||{}).length}件</span></div><button data-restore-history="${index}">復元</button></div>`).join(""):'<div class="empty compact-empty">自動バックアップはまだありません。</div>'}</div>
+        <div class="history-actions"><button id="saveHistoryNowButton" class="secondary-action">現在の状態を履歴へ保存</button>${getAutoBackups().length?'<button id="clearHistoryButton" class="text-danger-button">履歴を削除</button>':""}</div>
+      </div>
+      <div class="panel backup-panel update-tool-panel">
+        <div class="backup-icon">🛠️</div>
+        <h3>マスターデータ更新ツール</h3>
+        <p>Excel・CSV・JSONを読み込み、重複・sort・URL・前回との差分を確認して更新ファイルを生成します。</p>
+        <a class="primary-action link-action" href="./tools/data-builder.html">データ更新ツールを開く</a>
+      </div>
       <div class="panel data-check-panel">
         <div class="data-check-head">
           <div><h3>🧪 データ不備チェック</h3><p>events.jsonとメンバー例外設定を自動確認します。</p></div>
@@ -709,6 +1059,11 @@ function openMember(id){
     document.getElementById("exportBackupButton").onclick=exportBackup;
     document.getElementById("importBackupInput").onchange=e=>importBackupFile(e.target.files?.[0]);
     document.getElementById("deleteAllDataButton").onclick=deleteAllUserData;
+    document.querySelectorAll("[data-restore-history]").forEach(button=>button.onclick=()=>restoreAutoBackup(button.dataset.restoreHistory));
+    const saveHistoryButton=document.getElementById("saveHistoryNowButton");
+    if(saveHistoryButton)saveHistoryButton.onclick=()=>{saveAutoBackup("手動履歴保存");renderBackup()};
+    const clearHistoryButton=document.getElementById("clearHistoryButton");
+    if(clearHistoryButton)clearHistoryButton.onclick=clearAutoBackups;
   }
 
   function createMemberButton(m){
@@ -730,9 +1085,11 @@ function openMember(id){
     rankedMembers(MEMBERS.filter(isGraduated)).forEach(m=>$("graduatedMemberGrid").appendChild(createMemberButton(m)));
   }
   renderHomeMembers();
+  renderRecentEvents();
   $("openMemberSelectorButton").onclick=openMemberSelector;
   $("closeMemberSelectorButton").onclick=closeMemberSelector;
   $("allMembersDashboardButton").onclick=openAll;
+  $("quickMemberSwitchButton").onclick=()=>{renderHomeMembers();openMemberSelector()};
   $("memberSelectorOverlay").onclick=e=>{if(e.target===$("memberSelectorOverlay"))closeMemberSelector()};
 
   const selectorOverlay=$("memberSelectorOverlay");
@@ -788,23 +1145,20 @@ function openMember(id){
   },{passive:true});
 
   selectorSheet.addEventListener("touchcancel",resetSelectorSwipe,{passive:true});
-  document.addEventListener("keydown",e=>{if(e.key==="Escape")closeMemberSelector()});
+  document.addEventListener("keydown",e=>{if(e.key==="Escape"){closeMemberSelector();closeUtilitySheet("filterSheetOverlay");closeUtilitySheet("sortSheetOverlay")}});
   $("searchInput").value=state.search;
-  $("categoryFilter").value=state.category;
-  $("yearFilter").innerHTML=yearOptions(state.yearFilter);
-  $("yearFilter").value=state.yearFilter;
-  $("sortOrder").value=state.sort;
-  $("ownershipFilter").value=state.ownership;
-  $("newFilter").value=state.newFilter;
-  $("oshiFilter").value=state.oshiOnly?"oshi":"";
-  $("backButton").onclick=()=>{$("managerScreen").classList.add("hidden");$("homeScreen").classList.remove("hidden");window.scrollTo(0,0)};
+  $("backButton").onclick=()=>{saveScrollPosition();renderRecentEvents();$("managerScreen").classList.add("hidden");$("homeScreen").classList.remove("hidden");window.scrollTo(0,0)};
   $("searchInput").oninput=e=>{state.search=e.target.value;savePreferences();renderCollection()};
-  $("categoryFilter").onchange=e=>{state.category=e.target.value;savePreferences();renderCollection()};
-  $("yearFilter").onchange=e=>{state.yearFilter=e.target.value;savePreferences();renderCollection()};
-  $("sortOrder").onchange=e=>{state.sort=e.target.value;savePreferences();renderCollection()};
-  $("ownershipFilter").onchange=e=>{state.ownership=e.target.value;savePreferences();renderCollection()};
-  $("newFilter").onchange=e=>{state.newFilter=e.target.value;savePreferences();renderCollection()};
-  $("oshiFilter").onchange=e=>{state.oshiOnly=e.target.value==="oshi";savePreferences();renderCollection()};
+  $("openCollectionFilterButton").onclick=()=>openFilterSheet("collection");
+  $("openCollectionSortButton").onclick=()=>openSortSheet("collection");
+  $("closeFilterSheetButton").onclick=()=>closeUtilitySheet("filterSheetOverlay");
+  $("closeSortSheetButton").onclick=()=>closeUtilitySheet("sortSheetOverlay");
+  $("clearFilterSheetButton").onclick=clearFilterSheet;
+  $("applyFilterSheetButton").onclick=applyFilterSheet;
+  $("filterSheetOverlay").onclick=e=>{if(e.target===$("filterSheetOverlay"))closeUtilitySheet("filterSheetOverlay")};
+  $("sortSheetOverlay").onclick=e=>{if(e.target===$("sortSheetOverlay"))closeUtilitySheet("sortSheetOverlay")};
+  setupUtilitySheetSwipe("filterSheetOverlay");
+  setupUtilitySheetSwipe("sortSheetOverlay");
   document.querySelectorAll(".bottom-nav button").forEach(b=>b.onclick=()=>showPage(b.dataset.page));
   const topButton=document.createElement("button");
   topButton.id="backToTop";
@@ -814,7 +1168,9 @@ function openMember(id){
   topButton.onclick=()=>window.scrollTo({top:0,behavior:"smooth"});
   document.body.appendChild(topButton);
   const toggleTopButton=()=>topButton.classList.toggle("visible",window.scrollY>500);
-  window.addEventListener("scroll",toggleTopButton,{passive:true});
+  let scrollSaveTimer=0;
+  window.addEventListener("scroll",()=>{toggleTopButton();clearTimeout(scrollSaveTimer);scrollSaveTimer=setTimeout(saveScrollPosition,160)},{passive:true});
+  window.addEventListener("pagehide",saveScrollPosition);
   toggleTopButton();
   window.showPage = showPage;
 }
