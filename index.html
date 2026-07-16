@@ -11,7 +11,7 @@
 <link rel="manifest" href="./manifest.webmanifest?v=1.0.0">
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=1.0.0">
 <title>=LOVE 生写真管理</title>
-<link rel="stylesheet" href="./css/style.css?v=1.01-yearfilter">
+<link rel="stylesheet" href="./css/style.css?v=1.02">
 </head>
 <body>
 <section id="homeScreen" class="home dashboard-home">
@@ -38,6 +38,15 @@
         <span><b>全メンバーを見る</b><small>イベントごとにまとめて確認</small></span>
       </button>
     </div>
+  </section>
+
+
+  <section id="recentDashboardSection" class="dashboard-section hidden">
+    <div class="dashboard-section-title">
+      <span>最近編集した生写真</span>
+      <small>続きから開く</small>
+    </div>
+    <div id="recentEventList" class="recent-event-list"></div>
   </section>
 
   <section class="dashboard-section">
@@ -90,28 +99,14 @@
 </section>
 
 <section id="managerScreen" class="hidden">
-<header class="topbar"><div class="top-inner"><div class="top-row"><button id="backButton" class="back">← 戻る</button><div class="member-heading"><strong id="memberTitle"></strong><span id="memberSub"></span></div><div style="width:42px"></div></div>
-<div id="managerTools"><div class="searchbox"><span>🔍</span><input id="searchInput" type="search" placeholder="年月・楽曲名・ツアー名・コラボ名で検索"></div>
-<div class="filters collection-main-filters">
-<select id="categoryFilter"><option value="">すべてのカテゴリ</option><option value="通常">通常</option><option value="イベント">イベント</option><option value="コラボ">コラボ</option></select>
-<select id="yearFilter" aria-label="年代で絞り込む"><option value="">すべての年代</option></select>
-<select id="sortOrder"><option value="desc">新しい順</option><option value="new">NEW優先</option><option value="asc">古い順</option></select>
-</div>
-<div class="filters" id="ownershipFilterRow">
-<select id="ownershipFilter">
-<option value="">所持状況：すべて</option>
-<option value="owned">所持ありのみ</option>
-<option value="unowned">未所持のみ</option>
-</select>
-<select id="newFilter">
-<option value="">新着：すべて</option>
-<option value="new">NEWのみ</option>
-</select>
-<select id="oshiFilter">
-<option value="">メンバー：すべて</option>
-<option value="oshi">推しだけ表示</option>
-</select>
-</div>
+<header class="topbar"><div class="top-inner"><div class="top-row"><button id="backButton" class="back">← 戻る</button><div class="member-heading"><strong id="memberTitle"></strong><span id="memberSub"></span></div><button id="quickMemberSwitchButton" class="quick-member-switch" aria-label="メンバーを変更">👥</button></div>
+<div id="managerTools">
+  <div class="searchbox"><span>🔍</span><input id="searchInput" type="search" placeholder="年月・楽曲名・ツアー名・コラボ名で検索"></div>
+  <div class="unified-filter-toolbar">
+    <button id="openCollectionFilterButton" class="filter-action-button"><span>⚙️</span><b>絞り込み</b><i id="collectionFilterCount" class="filter-count hidden">0</i></button>
+    <button id="openCollectionSortButton" class="filter-action-button"><span>↕</span><b id="collectionSortLabel">新しい順</b></button>
+  </div>
+  <div id="collectionFilterChips" class="active-filter-chips"></div>
 </div></div></header>
 <main class="wrap">
 <section id="collectionPage">
@@ -135,13 +130,40 @@
 </nav>
 </section>
 
+
+<div id="filterSheetOverlay" class="utility-sheet-overlay hidden" aria-hidden="true">
+  <div class="utility-sheet" role="dialog" aria-modal="true" aria-labelledby="filterSheetTitle">
+    <div class="utility-sheet-handle"></div>
+    <div class="utility-sheet-head">
+      <div><h2 id="filterSheetTitle">絞り込み</h2><p id="filterSheetDescription">表示する条件を選択してください</p></div>
+      <button id="closeFilterSheetButton" class="utility-sheet-close" aria-label="閉じる">×</button>
+    </div>
+    <div id="filterSheetBody" class="utility-sheet-body"></div>
+    <div class="utility-sheet-actions">
+      <button id="clearFilterSheetButton" class="sheet-clear-button">すべて解除</button>
+      <button id="applyFilterSheetButton" class="sheet-apply-button">適用する</button>
+    </div>
+  </div>
+</div>
+
+<div id="sortSheetOverlay" class="utility-sheet-overlay hidden" aria-hidden="true">
+  <div class="utility-sheet sort-utility-sheet" role="dialog" aria-modal="true" aria-labelledby="sortSheetTitle">
+    <div class="utility-sheet-handle"></div>
+    <div class="utility-sheet-head">
+      <div><h2 id="sortSheetTitle">並び順</h2><p>一覧の表示順を選択してください</p></div>
+      <button id="closeSortSheetButton" class="utility-sheet-close" aria-label="閉じる">×</button>
+    </div>
+    <div id="sortSheetBody" class="utility-sheet-body"></div>
+  </div>
+</div>
+
 <div id="updateBanner" class="update-banner hidden">
   <div><b>新しいバージョンがあります</b><span>最新版を反映するため再読み込みしてください。</span></div>
   <button id="applyUpdateButton">更新する</button>
 </div>
 <div id="offlineBanner" class="offline-banner hidden">オフラインで表示しています</div>
-<div id="versionLabel" class="version-label">Ver 1.01</div>
-<script src="./js/app.js?v=1.01-yearfilter"></script>
+<div id="versionLabel" class="version-label">Ver 1.02</div>
+<script src="./js/app.js?v=1.02"></script>
 <script>
 (() => {
   const updateBanner = document.getElementById("updateBanner");
@@ -166,7 +188,7 @@
 
   window.addEventListener("load", async () => {
     try {
-      const registration = await navigator.serviceWorker.register("./service-worker.js?v=1.01-yearfilter", {scope: "./"});
+      const registration = await navigator.serviceWorker.register("./service-worker.js?v=1.02", {scope: "./"});
       const showUpdate = worker => {
         if (!worker) return;
         updateBanner.classList.remove("hidden");

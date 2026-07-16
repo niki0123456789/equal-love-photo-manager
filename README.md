@@ -1,4 +1,4 @@
-# =LOVE 生写真管理 Ver1.01
+# =LOVE 生写真管理 Ver1.02
 
 スマートフォンで使える、=LOVE生写真コレクション管理Webアプリです。
 
@@ -55,3 +55,12 @@ README.md
 ```
 
 `events.json`、`members.json`、`positions.json`、`icons`内の画像は更新不要です。
+
+
+## Ver1.02
+- 絞り込みをボトムシートへ集約
+- 選択中条件をチップ表示
+- 一覧ごとの並び順を統一
+- 復元・全削除前の自動バックアップ履歴
+- Schema Version・event_id移行対応
+- Excel/CSV/JSONデータ更新ツール

@@ -1,17 +1,20 @@
-const CACHE_NAME = "equal-love-photo-manager-v101-yearfilter";
+const CACHE_NAME = "equal-love-photo-manager-v102";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./css/style.css?v=1.01-yearfilter",
-  "./js/app.js?v=1.01-yearfilter",
-  "./data/events.json?v=1.01-yearfilter",
+  "./css/style.css?v=1.02",
+  "./js/app.js?v=1.02",
+  "./data/events.json?v=1.02",
   "./data/members.json?v=1.0.0",
   "./data/positions.json?v=1.0.0-orderfix",
-  "./data/config.json?v=1.01-yearfilter",
+  "./data/config.json?v=1.02",
   "./manifest.webmanifest?v=1.0.0",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
-  "./icons/apple-touch-icon.png"
+  "./icons/apple-touch-icon.png",
+  "./tools/data-builder.html",
+  "./tools/data-builder.css",
+  "./tools/data-builder.js"
 ];
 
 self.addEventListener("install", event => {
