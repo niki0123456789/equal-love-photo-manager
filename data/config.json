@@ -1,7 +1,7 @@
 {
-  "version": "1.0.0",
-  "releaseDate": "2026-07-14",
-  "dataVersion": "2026-07-16.1",
+  "version": "1.02",
+  "releaseDate": "2026-07-16",
+  "dataVersion": "2026-07-16.3",
   "newItemCount": 12,
   "requiredEventFields": [
     "officialName",
@@ -16,5 +16,8 @@
   "pwaEnabled": true,
   "dataUpdatedAt": "2026-07-16",
   "appName": "=LOVE 生写真管理",
-  "status": "stable"
+  "status": "stable",
+  "schemaVersion": 2,
+  "maxAutoBackups": 3,
+  "eventIdMigrations": {}
 }
