@@ -113,7 +113,7 @@ function render(items,issues,diff){
   $("diffList").innerHTML=groups.map(([label,rows])=>`<div class="diff-group"><h3>${label} ${rows.length}件</h3>${rows.length?rows.join(""):'<div class="diff-row">該当なし</div>'}</div>`).join("");
   ["downloadEvents","downloadConfig","downloadZip"].forEach(id=>$(id).disabled=!!errors.length);
   generatedEvents=items;
-  generatedConfig={...currentConfig,version:"1.02",schemaVersion:2,dataVersion:new Date().toISOString().slice(0,10),dataUpdatedAt:new Date().toISOString().slice(0,10),eventIdMigrations:{...(currentConfig.eventIdMigrations||{}),...diff.idMigrations}};
+  generatedConfig={...currentConfig,version:"1.03",schemaVersion:2,dataVersion:new Date().toISOString().slice(0,10),dataUpdatedAt:new Date().toISOString().slice(0,10),eventIdMigrations:{...(currentConfig.eventIdMigrations||{}),...diff.idMigrations}};
   report={createdAt:new Date().toISOString(),summary:{events:items.length,errors:errors.length,warnings:warnings.length,added:diff.added.length,changed:diff.changed.length,removed:diff.removed.length},issues,diff:{added:diff.added.map(e=>e.id),changed:diff.changed.map(e=>e.event.id),removed:diff.removed.map(e=>e.id)},eventIdMigrations:diff.idMigrations};
 }
 function download(name,data,type="application/json"){
