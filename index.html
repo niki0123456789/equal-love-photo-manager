@@ -11,7 +11,7 @@
 <link rel="manifest" href="./manifest.webmanifest?v=1.0.0">
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=1.0.0">
 <title>=LOVE 生写真管理</title>
-<link rel="stylesheet" href="./css/style.css?v=1.04">
+<link rel="stylesheet" href="./css/style.css?v=1.05">
 </head>
 <body>
 <section id="homeScreen" class="home dashboard-home">
@@ -83,6 +83,7 @@
     </div>
     <div class="utility-sheet-body">
       <div class="settings-menu-list">
+        <button data-settings-page="memberImages"><span>🖼️</span><div><b>メンバー画像設定</b><small>端末内だけで好きな画像を表示</small></div><i>›</i></button>
         <button data-settings-page="oshi"><span>👑</span><div><b>推し設定</b><small>最推し・推し・気になるを設定</small></div><i>›</i></button>
         <button data-settings-page="backup"><span>💾</span><div><b>バックアップ・データ管理</b><small>保存・復元・更新ツール</small></div><i>›</i></button>
         <button data-settings-page="help"><span>📖</span><div><b>使い方</b><small>操作方法とデータ保護の案内</small></div><i>›</i></button>
@@ -137,6 +138,7 @@
 <section id="tradePage" class="hidden"></section>
 <section id="missingPage" class="hidden"></section>
 <section id="oshiPage" class="hidden"></section>
+<section id="memberImagesPage" class="hidden"></section>
 <section id="backupPage" class="hidden"></section>
 <section id="helpPage" class="hidden"></section>
 <section id="aboutPage" class="hidden"></section>
@@ -149,6 +151,46 @@
 </nav>
 </section>
 
+
+
+<div id="imageAdjustSheetOverlay" class="utility-sheet-overlay hidden" aria-hidden="true">
+  <div class="utility-sheet image-adjust-sheet" role="dialog" aria-modal="true" aria-labelledby="imageAdjustSheetTitle">
+    <div class="utility-sheet-handle"></div>
+    <div class="utility-sheet-head">
+      <div>
+        <h2 id="imageAdjustSheetTitle">画像の表示調整</h2>
+        <p id="imageAdjustMemberName">メンバー画像</p>
+      </div>
+      <button id="closeImageAdjustSheetButton" class="utility-sheet-close" aria-label="閉じる">×</button>
+    </div>
+    <div class="utility-sheet-body">
+      <div class="image-adjust-preview">
+        <img id="imageAdjustPreview" alt="画像表示位置のプレビュー">
+        <div class="image-adjust-preview-shade"></div>
+        <div id="imageAdjustPreviewName" class="image-adjust-preview-name"></div>
+      </div>
+      <div class="image-adjust-controls">
+        <label>
+          <span>左右の位置</span>
+          <input id="imagePositionX" type="range" min="0" max="100" step="1" value="50">
+        </label>
+        <label>
+          <span>上下の位置</span>
+          <input id="imagePositionY" type="range" min="0" max="100" step="1" value="50">
+        </label>
+        <label>
+          <span>拡大</span>
+          <input id="imageZoom" type="range" min="100" max="200" step="1" value="100">
+        </label>
+      </div>
+      <p class="local-image-note">画像はこの端末のブラウザ内だけに保存され、外部へ送信されません。</p>
+    </div>
+    <div class="utility-sheet-actions">
+      <button id="cancelImageAdjustButton" class="sheet-clear-button">キャンセル</button>
+      <button id="saveImageAdjustButton" class="sheet-apply-button">この表示で保存</button>
+    </div>
+  </div>
+</div>
 
 <div id="filterSheetOverlay" class="utility-sheet-overlay hidden" aria-hidden="true">
   <div class="utility-sheet" role="dialog" aria-modal="true" aria-labelledby="filterSheetTitle">
@@ -194,8 +236,8 @@
   <button id="applyUpdateButton">更新する</button>
 </div>
 <div id="offlineBanner" class="offline-banner hidden">オフラインで表示しています</div>
-<div id="versionLabel" class="version-label">Ver 1.04</div>
-<script src="./js/app.js?v=1.04"></script>
+<div id="versionLabel" class="version-label">Ver 1.05</div>
+<script src="./js/app.js?v=1.05"></script>
 <script>
 (() => {
   const updateBanner = document.getElementById("updateBanner");
@@ -220,7 +262,7 @@
 
   window.addEventListener("load", async () => {
     try {
-      const registration = await navigator.serviceWorker.register("./service-worker.js?v=1.04", {scope: "./"});
+      const registration = await navigator.serviceWorker.register("./service-worker.js?v=1.05", {scope: "./"});
       const showUpdate = worker => {
         if (!worker) return;
         updateBanner.classList.remove("hidden");
