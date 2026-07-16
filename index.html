@@ -11,7 +11,7 @@
 <link rel="manifest" href="./manifest.webmanifest?v=1.0.0">
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=1.0.0">
 <title>=LOVE 生写真管理</title>
-<link rel="stylesheet" href="./css/style.css?v=1.02-memberfix">
+<link rel="stylesheet" href="./css/style.css?v=1.03">
 </head>
 <body>
 <section id="homeScreen" class="home dashboard-home">
@@ -37,6 +37,10 @@
         <span>🌈</span>
         <span><b>全メンバーを見る</b><small>イベントごとにまとめて確認</small></span>
       </button>
+      <div class="fast-manage-grid">
+        <button id="quickInputDashboardButton" class="fast-manage-button"><span>⚡</span><b>クイック入力</b><small>購入後の登録を高速化</small></button>
+        <button id="eventMatrixDashboardButton" class="fast-manage-button"><span>▦</span><b>イベント表</b><small>全メンバーを一括確認</small></button>
+      </div>
     </div>
   </section>
 
@@ -108,12 +112,18 @@
     <button id="openCollectionSortButton" class="filter-action-button"><span>↕</span><b id="collectionSortLabel">新しい順</b></button>
   </div>
   <div id="collectionFilterChips" class="active-filter-chips"></div>
+  <div class="collection-mode-actions">
+    <button id="openQuickInputButton"><span>⚡</span>クイック入力</button>
+    <button id="openEventMatrixButton"><span>▦</span>イベント表</button>
+  </div>
 </div></div></header>
 <main class="wrap">
 <section id="collectionPage">
 <div class="summary"><div class="summary-card"><b id="ownedTotal">0</b><span>所持枚数</span></div><div class="summary-card"><b id="ownedTypes">0</b><span>所持種類</span></div><div class="summary-card"><b id="signedTotal">0</b><span>直筆あり</span></div></div>
 <div class="notice">所持枚数・直筆・欲しい情報は、このブラウザ内に保存されます。</div><div id="eventList" class="event-list"></div>
 </section>
+<section id="quickPage" class="hidden"></section>
+<section id="matrixPage" class="hidden"></section>
 <section id="statsPage" class="hidden"></section>
 <section id="wishlistPage" class="hidden"></section>
 <section id="tradePage" class="hidden"></section>
@@ -158,13 +168,26 @@
   </div>
 </div>
 
+
+<div id="bulkSheetOverlay" class="utility-sheet-overlay hidden" aria-hidden="true">
+  <div class="utility-sheet bulk-utility-sheet" role="dialog" aria-modal="true" aria-labelledby="bulkSheetTitle">
+    <div class="utility-sheet-handle"></div>
+    <div class="utility-sheet-head">
+      <div><h2 id="bulkSheetTitle">一括操作</h2><p id="bulkSheetDescription"></p></div>
+      <button id="closeBulkSheetButton" class="utility-sheet-close" aria-label="閉じる">×</button>
+    </div>
+    <div id="bulkSheetBody" class="utility-sheet-body"></div>
+  </div>
+</div>
+<div id="actionToast" class="action-toast hidden" role="status"></div>
+
 <div id="updateBanner" class="update-banner hidden">
   <div><b>新しいバージョンがあります</b><span>最新版を反映するため再読み込みしてください。</span></div>
   <button id="applyUpdateButton">更新する</button>
 </div>
 <div id="offlineBanner" class="offline-banner hidden">オフラインで表示しています</div>
-<div id="versionLabel" class="version-label">Ver 1.02</div>
-<script src="./js/app.js?v=1.02-memberfix"></script>
+<div id="versionLabel" class="version-label">Ver 1.03</div>
+<script src="./js/app.js?v=1.03"></script>
 <script>
 (() => {
   const updateBanner = document.getElementById("updateBanner");
@@ -189,7 +212,7 @@
 
   window.addEventListener("load", async () => {
     try {
-      const registration = await navigator.serviceWorker.register("./service-worker.js?v=1.02-memberfix", {scope: "./"});
+      const registration = await navigator.serviceWorker.register("./service-worker.js?v=1.03", {scope: "./"});
       const showUpdate = worker => {
         if (!worker) return;
         updateBanner.classList.remove("hidden");
