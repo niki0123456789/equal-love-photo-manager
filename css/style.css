@@ -727,3 +727,88 @@ body.selector-open{overflow:hidden}
 .action-toast{position:fixed;left:50%;bottom:calc(86px + env(safe-area-inset-bottom));z-index:220;transform:translateX(-50%);min-width:190px;max-width:86%;padding:11px 15px;border-radius:999px;background:rgba(58,39,48,.94);color:#fff;text-align:center;font-size:10px;font-weight:900;box-shadow:0 8px 24px rgba(0,0,0,.2)}
 .event-footer{gap:7px;flex-wrap:wrap}.event-footer .card-bulk-button{margin-right:auto}
 @media(max-width:390px){.quick-position-row{grid-template-columns:minmax(55px,1fr) 116px 39px 39px;gap:5px;padding:8px}.quick-stepper{grid-template-columns:34px 1fr 34px}.quick-toggle{height:41px}.mode-filter-grid{grid-template-columns:1fr}.matrix-table tbody th{width:94px}}
+
+
+/* Ver1.04：設定メニュー・モード並び替え・五十音順推し表示 */
+.dashboard-wrap{position:relative}
+.dashboard-settings-button{
+  position:absolute;
+  z-index:3;
+  top:2px;
+  right:14px;
+  width:46px;
+  height:46px;
+  display:grid;
+  place-items:center;
+  border:2px solid rgba(255,255,255,.88);
+  border-radius:15px;
+  background:rgba(255,255,255,.92);
+  color:#a9416c;
+  font-size:21px;
+  box-shadow:0 8px 20px rgba(105,43,70,.12);
+}
+.dashboard-settings-button:active{transform:scale(.96)}
+.settings-menu-list{display:grid;gap:9px}
+.settings-menu-list>button{
+  display:grid;
+  grid-template-columns:38px 1fr auto;
+  align-items:center;
+  gap:10px;
+  width:100%;
+  min-height:67px;
+  padding:11px 13px;
+  border:1px solid var(--line);
+  border-radius:15px;
+  background:#fff;
+  color:#624955;
+  text-align:left;
+}
+.settings-menu-list>button>span{font-size:24px;text-align:center}
+.settings-menu-list b,.settings-menu-list small{display:block}
+.settings-menu-list b{font-size:12px}
+.settings-menu-list small{margin-top:3px;color:var(--muted);font-size:9px}
+.settings-menu-list i{color:#cf729a;font-size:23px;font-style:normal}
+.mode-filter-grid-with-sort{
+  grid-template-columns:minmax(0,1.45fr) minmax(95px,.75fr);
+}
+.mode-filter-grid-with-sort .mode-sort-button{
+  grid-column:1/-1;
+}
+.mode-sort-button{
+  min-height:43px;
+  border:1px solid rgba(217,91,145,.2);
+  border-radius:13px;
+  background:#fff;
+  color:#a43f6a;
+  font-size:11px;
+  font-weight:900;
+}
+.mode-sort-button span{margin-right:5px}
+.member-card.oshi-card{
+  position:relative;
+  overflow:hidden;
+}
+.member-card.oshi-card::after{
+  content:"推し登録";
+  position:absolute;
+  right:-27px;
+  top:16px;
+  width:94px;
+  padding:3px 0;
+  transform:rotate(42deg);
+  background:var(--card-accent);
+  color:#fff;
+  font-size:7px;
+  font-weight:950;
+  text-align:center;
+  letter-spacing:.08em;
+  opacity:.86;
+}
+.member-card>.oshi-badge{
+  z-index:2;
+  box-shadow:0 3px 8px rgba(77,35,55,.12);
+}
+@media(max-width:420px){
+  .dashboard-logo{padding-left:48px;padding-right:48px}
+  .dashboard-settings-button{right:6px}
+}
