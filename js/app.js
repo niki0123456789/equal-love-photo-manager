@@ -5,10 +5,10 @@ let APP_CONFIG = {};
 
 async function loadAppData() {
   const [eventsResponse, membersResponse, positionsResponse, configResponse] = await Promise.all([
-    fetch("./data/events.json?v=1.06",{cache:"no-store"}),
+    fetch("./data/events.json?v=1.07",{cache:"no-store"}),
     fetch("./data/members.json?v=1.0.0",{cache:"no-store"}),
     fetch("./data/positions.json?v=1.0.0-orderfix",{cache:"no-store"}),
-    fetch("./data/config.json?v=1.06",{cache:"no-store"})
+    fetch("./data/config.json?v=1.07",{cache:"no-store"})
   ]);
 
   if (!eventsResponse.ok || !membersResponse.ok || !positionsResponse.ok || !configResponse.ok) {
@@ -177,11 +177,25 @@ function initializeApp() {
     return openMemberImageDb().then(db=>new Promise((resolve,reject)=>{
       const transaction=db.transaction(MEMBER_IMAGE_STORE,mode);
       const store=transaction.objectStore(MEMBER_IMAGE_STORE);
-      let request;
-      try{request=operation(store)}catch(error){reject(error);return}
-      request.onsuccess=()=>resolve(request.result);
-      request.onerror=()=>reject(request.error||new Error("画像データを処理できませんでした"));
-      transaction.onabort=()=>reject(transaction.error||new Error("画像データの処理が中断されました"));
+      let request,result;
+      let settled=false;
+      const fail=error=>{
+        if(settled)return;
+        settled=true;
+        reject(error||new Error("画像データを処理できませんでした"));
+      };
+      try{request=operation(store)}catch(error){fail(error);return}
+      if(request){
+        request.onsuccess=()=>{result=request.result};
+        request.onerror=()=>fail(request.error||new Error("画像データを処理できませんでした"));
+      }
+      transaction.oncomplete=()=>{
+        if(settled)return;
+        settled=true;
+        resolve(result);
+      };
+      transaction.onerror=()=>fail(transaction.error||new Error("画像データを保存できませんでした"));
+      transaction.onabort=()=>fail(transaction.error||new Error("画像データの処理が中断されました"));
     }));
   }
 
@@ -189,9 +203,9 @@ function initializeApp() {
     return {
       memberId:String(record.memberId||""),
       blob:record.blob,
-      positionX:Number.isFinite(Number(record.positionX))?Number(record.positionX):50,
-      positionY:Number.isFinite(Number(record.positionY))?Number(record.positionY):50,
-      zoom:Number.isFinite(Number(record.zoom))?Math.min(2,Math.max(1,Number(record.zoom))):1,
+      positionX:imageNumber(record.positionX,50,0,100),
+      positionY:imageNumber(record.positionY,50,0,100),
+      zoom:imageNumber(record.zoom,1,1,2.4),
       updatedAt:String(record.updatedAt||new Date().toISOString())
     };
   }
@@ -235,11 +249,16 @@ function initializeApp() {
   function memberImageRecord(memberId){return memberImageRecords.get(memberId)||null}
   function memberImageUrl(memberId){return memberImageUrls.get(memberId)||""}
 
+  function imageNumber(value,fallback,min,max){
+    const number=Number(value);
+    return Number.isFinite(number)?Math.min(max,Math.max(min,number)):fallback;
+  }
+
   function memberImageStyle(record){
     if(!record)return "";
-    const x=Math.min(100,Math.max(0,Number(record.positionX)||50));
-    const y=Math.min(100,Math.max(0,Number(record.positionY)||50));
-    const zoom=Math.min(2.4,Math.max(1,Number(record.zoom)||1));
+    const x=imageNumber(record.positionX,50,0,100);
+    const y=imageNumber(record.positionY,50,0,100);
+    const zoom=imageNumber(record.zoom,1,1,2.4);
     return `object-position:${x}% ${y}%;transform-origin:${x}% ${y}%;transform:scale(${zoom})`;
   }
 
@@ -331,9 +350,12 @@ function initializeApp() {
 
   function updateImageAdjustPreview(){
     if(!imageEditDraft)return;
-    const x=Number($("imagePositionX").value||50);
-    const y=Number($("imagePositionY").value||50);
-    const zoom=Number($("imageZoom").value||100)/100;
+    const x=imageNumber($("imagePositionX").value,50,0,100);
+    const y=imageNumber($("imagePositionY").value,50,0,100);
+    const zoom=imageNumber(Number($("imageZoom").value)/100,1,1,2.4);
+    imageEditDraft.positionX=x;
+    imageEditDraft.positionY=y;
+    imageEditDraft.zoom=zoom;
     [$("imageAdjustPreview"),$("imageAdjustAvatarPreview")].forEach(preview=>{
       if(!preview)return;
       preview.style.objectPosition=`${x}% ${y}%`;
@@ -411,23 +433,34 @@ function initializeApp() {
 
   async function saveImageAdjust(){
     if(!imageEditDraft)return;
-    const record={
+    updateImageAdjustPreview();
+    const saveButton=$("saveImageAdjustButton");
+    const originalLabel=saveButton?.textContent||"この表示で保存";
+    const record=normalizeMemberImageRecord({
       ...imageEditDraft,
-      positionX:Number($("imagePositionX").value||50),
-      positionY:Number($("imagePositionY").value||50),
-      zoom:Number($("imageZoom").value||100)/100,
+      positionX:imageEditDraft.positionX,
+      positionY:imageEditDraft.positionY,
+      zoom:imageEditDraft.zoom,
       updatedAt:new Date().toISOString()
-    };
+    });
     try{
+      if(saveButton){saveButton.disabled=true;saveButton.textContent="保存中…"}
       await imageDbRequest("readwrite",store=>store.put(record));
-      cacheMemberImageRecord(record);
+      const saved=await imageDbRequest("readonly",store=>store.get(record.memberId));
+      if(!saved?.blob)throw new Error("保存後の画像データを確認できませんでした");
+      const verified=normalizeMemberImageRecord(saved);
+      const samePosition=Math.abs(verified.positionX-record.positionX)<0.01&&Math.abs(verified.positionY-record.positionY)<0.01&&Math.abs(verified.zoom-record.zoom)<0.001;
+      if(!samePosition)throw new Error("位置設定の保存確認に失敗しました");
+      cacheMemberImageRecord(verified);
       closeImageAdjustSheet();
       renderMemberImages();
       renderHomeMembers();
       if(state.page==="oshi")renderOshi();
-      showActionToast("メンバー画像を端末内に保存しました");
+      showActionToast(`画像設定を保存しました（左右 ${Math.round(verified.positionX)}・上下 ${Math.round(verified.positionY)}・${Math.round(verified.zoom*100)}%）`);
     }catch(error){
-      alert(`画像を保存できませんでした：${error.message}`);
+      alert(`画像設定を保存できませんでした：${error.message}`);
+    }finally{
+      if(saveButton){saveButton.disabled=false;saveButton.textContent=originalLabel}
     }
   }
 
@@ -484,7 +517,7 @@ function initializeApp() {
         ${preview}
         <div class="member-image-setting-info">
           <b>${member.emoji} ${esc(member.name)}</b>
-          <span>${record?`設定済み・${formatImageBytes(record.blob.size)}`:"画像未設定"}</span>
+          <span>${record?`設定済み・左右${Math.round(record.positionX)}／上下${Math.round(record.positionY)}／${Math.round(record.zoom*100)}%・${formatImageBytes(record.blob.size)}`:"画像未設定"}</span>
           ${isGraduated(member)?'<small>卒業メンバー</small>':""}
         </div>
         <div class="member-image-setting-actions">
@@ -1287,8 +1320,8 @@ function openMember(id){
         <div class="panel"><b>${graduated}</b><span>卒業メンバー</span></div>
       </div>
       <div class="panel about-notes">
-        <h3>Ver1.06の主な機能</h3>
-        <p>端末内メンバー画像、表示範囲が分かる編集プレビュー、ドラッグ調整、クイック入力、イベント表、TOP設定メニュー、一括操作、統合フィルター、データ保護に対応しています。</p>
+        <h3>Ver1.07の主な機能</h3>
+        <p>端末内メンバー画像、保存完了後の読み直し確認、表示範囲プレビュー、ドラッグ調整、クイック入力、イベント表、一括操作、統合フィルター、データ保護に対応しています。</p>
         <h3>保存について</h3>
         <p>登録内容はこのブラウザ内に保存されます。別端末へ移す場合は、バックアップ画面からJSONファイルを保存してください。</p>
       </div>`;
