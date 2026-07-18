@@ -1071,3 +1071,8 @@ body.selector-open{overflow:hidden}
 .image-adjust-controls label>span{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .image-adjust-controls label>span b{color:#bf4b79;font-size:10px}
 @media(max-width:420px){.image-adjust-preview-grid{grid-template-columns:minmax(0,1fr) 88px}.image-adjust-avatar-preview{width:88px}.image-adjust-sheet .utility-sheet-actions{grid-template-columns:1fr}.image-adjust-preview.card-preview{max-width:215px}}
+
+
+/* Ver1.07 画像設定の確実な保存 */
+#saveImageAdjustButton:disabled{opacity:.62;cursor:wait}
+.member-image-setting-info span{line-height:1.55;overflow-wrap:anywhere}
