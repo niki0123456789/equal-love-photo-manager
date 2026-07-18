@@ -11,7 +11,7 @@
 <link rel="manifest" href="./manifest.webmanifest?v=1.0.0">
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=1.0.0">
 <title>=LOVE 生写真管理</title>
-<link rel="stylesheet" href="./css/style.css?v=1.07">
+<link rel="stylesheet" href="./css/style.css?v=1.08">
 </head>
 <body>
 <section id="homeScreen" class="home dashboard-home">
@@ -196,12 +196,12 @@
           <input id="imageZoom" type="range" min="100" max="240" step="1" value="100">
         </label>
       </div>
+      <button id="resetImageAdjustButton" class="image-adjust-reset-button">↺ 位置と拡大をリセット</button>
       <p class="local-image-note">画像はこの端末のブラウザ内だけに保存され、外部へ送信されません。保存ボタンを押すと、書き込み後に設定値を読み直して確認します。</p>
     </div>
-    <div class="utility-sheet-actions">
-      <button id="resetImageAdjustButton" class="sheet-clear-button">位置をリセット</button>
+    <div class="utility-sheet-actions image-adjust-fixed-actions">
       <button id="cancelImageAdjustButton" class="sheet-clear-button">キャンセル</button>
-      <button id="saveImageAdjustButton" class="sheet-apply-button">この表示で保存</button>
+      <button id="saveImageAdjustButton" class="sheet-apply-button">設定を保存</button>
     </div>
   </div>
 </div>
@@ -250,8 +250,8 @@
   <button id="applyUpdateButton">更新する</button>
 </div>
 <div id="offlineBanner" class="offline-banner hidden">オフラインで表示しています</div>
-<div id="versionLabel" class="version-label">Ver 1.07</div>
-<script src="./js/app.js?v=1.07"></script>
+<div id="versionLabel" class="version-label">Ver 1.08</div>
+<script src="./js/app.js?v=1.08"></script>
 <script>
 (() => {
   const updateBanner = document.getElementById("updateBanner");
@@ -276,7 +276,7 @@
 
   window.addEventListener("load", async () => {
     try {
-      const registration = await navigator.serviceWorker.register("./service-worker.js?v=1.07", {scope: "./"});
+      const registration = await navigator.serviceWorker.register("./service-worker.js?v=1.08", {scope: "./"});
       const showUpdate = worker => {
         if (!worker) return;
         updateBanner.classList.remove("hidden");
