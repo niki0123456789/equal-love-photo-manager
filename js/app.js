@@ -5,10 +5,10 @@ let APP_CONFIG = {};
 
 async function loadAppData() {
   const [eventsResponse, membersResponse, positionsResponse, configResponse] = await Promise.all([
-    fetch("./data/events.json?v=1.05",{cache:"no-store"}),
+    fetch("./data/events.json?v=1.06",{cache:"no-store"}),
     fetch("./data/members.json?v=1.0.0",{cache:"no-store"}),
     fetch("./data/positions.json?v=1.0.0-orderfix",{cache:"no-store"}),
-    fetch("./data/config.json?v=1.05",{cache:"no-store"})
+    fetch("./data/config.json?v=1.06",{cache:"no-store"})
   ]);
 
   if (!eventsResponse.ok || !membersResponse.ok || !positionsResponse.ok || !configResponse.ok) {
@@ -239,8 +239,8 @@ function initializeApp() {
     if(!record)return "";
     const x=Math.min(100,Math.max(0,Number(record.positionX)||50));
     const y=Math.min(100,Math.max(0,Number(record.positionY)||50));
-    const zoom=Math.min(2,Math.max(1,Number(record.zoom)||1));
-    return `object-position:${x}% ${y}%;transform:scale(${zoom})`;
+    const zoom=Math.min(2.4,Math.max(1,Number(record.zoom)||1));
+    return `object-position:${x}% ${y}%;transform-origin:${x}% ${y}%;transform:scale(${zoom})`;
   }
 
   function memberCardPhotoMarkup(member){
@@ -334,9 +334,16 @@ function initializeApp() {
     const x=Number($("imagePositionX").value||50);
     const y=Number($("imagePositionY").value||50);
     const zoom=Number($("imageZoom").value||100)/100;
-    const preview=$("imageAdjustPreview");
-    preview.style.objectPosition=`${x}% ${y}%`;
-    preview.style.transform=`scale(${zoom})`;
+    [$("imageAdjustPreview"),$("imageAdjustAvatarPreview")].forEach(preview=>{
+      if(!preview)return;
+      preview.style.objectPosition=`${x}% ${y}%`;
+      preview.style.transformOrigin=`${x}% ${y}%`;
+      preview.style.transform=`scale(${zoom})`;
+    });
+    const xValue=$("imagePositionXValue"),yValue=$("imagePositionYValue"),zValue=$("imageZoomValue");
+    if(xValue)xValue.textContent=String(Math.round(x));
+    if(yValue)yValue.textContent=String(Math.round(y));
+    if(zValue)zValue.textContent=`${Math.round(zoom*100)}%`;
   }
 
   function openImageAdjustSheet(memberId,record=null){
@@ -349,6 +356,7 @@ function initializeApp() {
     $("imageAdjustMemberName").textContent=`${member.emoji} ${member.name}`;
     $("imageAdjustPreviewName").textContent=member.name;
     $("imageAdjustPreview").src=imageEditPreviewUrl;
+    $("imageAdjustAvatarPreview").src=imageEditPreviewUrl;
     $("imagePositionX").value=String(imageEditDraft.positionX);
     $("imagePositionY").value=String(imageEditDraft.positionY);
     $("imageZoom").value=String(Math.round(imageEditDraft.zoom*100));
@@ -360,7 +368,45 @@ function initializeApp() {
     closeUtilitySheet("imageAdjustSheetOverlay");
     if(imageEditPreviewUrl)URL.revokeObjectURL(imageEditPreviewUrl);
     imageEditPreviewUrl="";
+    if($("imageAdjustPreview"))$("imageAdjustPreview").src="";
+    if($("imageAdjustAvatarPreview"))$("imageAdjustAvatarPreview").src="";
     imageEditDraft=null;
+  }
+
+  function resetImageAdjust(){
+    if(!imageEditDraft)return;
+    $("imagePositionX").value="50";
+    $("imagePositionY").value="50";
+    $("imageZoom").value="100";
+    updateImageAdjustPreview();
+  }
+
+  function setupImageAdjustDrag(){
+    const frame=$("imageAdjustPreviewFrame");
+    if(!frame||frame.dataset.dragReady==="1")return;
+    frame.dataset.dragReady="1";
+    let dragging=false,startX=0,startY=0,baseX=50,baseY=50;
+    const begin=(clientX,clientY)=>{
+      dragging=true;startX=clientX;startY=clientY;
+      baseX=Number($("imagePositionX").value||50);
+      baseY=Number($("imagePositionY").value||50);
+      frame.classList.add("dragging");
+    };
+    const move=(clientX,clientY)=>{
+      if(!dragging)return;
+      const rect=frame.getBoundingClientRect();
+      const dx=((clientX-startX)/Math.max(rect.width,1))*100;
+      const dy=((clientY-startY)/Math.max(rect.height,1))*100;
+      $("imagePositionX").value=String(Math.min(100,Math.max(0,baseX-dx)));
+      $("imagePositionY").value=String(Math.min(100,Math.max(0,baseY-dy)));
+      updateImageAdjustPreview();
+    };
+    const end=()=>{dragging=false;frame.classList.remove("dragging")};
+    frame.addEventListener("pointerdown",event=>{begin(event.clientX,event.clientY);frame.setPointerCapture?.(event.pointerId)});
+    frame.addEventListener("pointermove",event=>{move(event.clientX,event.clientY)});
+    frame.addEventListener("pointerup",end);
+    frame.addEventListener("pointercancel",end);
+    frame.addEventListener("pointerleave",()=>{});
   }
 
   async function saveImageAdjust(){
@@ -1220,7 +1266,7 @@ function openMember(id){
         <section class="panel guide-card"><span>3</span><div><h3>一覧を絞り込む</h3><p>検索欄と「絞り込み」「並び順」を使います。選択中の条件はチップで表示され、個別に解除できます。</p></div></section>
         <section class="panel guide-card"><span>4</span><div><h3>未所持・提供可能を確認する</h3><p>未所持一覧はメンバーの五十音順、各メンバー内はイベント順です。2枚目以降は提供可能として表示されます。</p></div></section>
         <section class="panel guide-card"><span>5</span><div><h3>推しを設定する</h3><p>最推し・推し・気になるの3段階です。メンバーカードの推しバッジや、推しだけの統計・未所持確認に使えます。</p></div></section>
-        <section class="panel guide-card"><span>6</span><div><h3>メンバー画像を設定する</h3><p>TOP右上の設定から、端末内の好きな画像をメンバーごとに登録できます。画像は外部送信されず、通常バックアップにも含まれません。</p></div></section>
+        <section class="panel guide-card"><span>6</span><div><h3>メンバー画像を設定する</h3><p>TOP右上の設定から、端末内の好きな画像をメンバーごとに登録できます。画像は編集画面で表示範囲を確認しながら位置調整でき、外部送信もされません。</p></div></section>
         <section class="panel guide-card important"><span>7</span><div><h3>定期的にバックアップする</h3><p>端末変更、Safariのデータ削除、ブラウザ変更に備えてJSONを保存してください。復元前には日時と件数を確認できます。</p></div></section>
         <section class="panel guide-card"><span>8</span><div><h3>iPhoneでアプリ化する</h3><p>Safariの共有ボタンから「ホーム画面に追加」を選択します。一度読み込めばオフラインでも閲覧できます。</p></div></section>
       </div>`;
@@ -1241,8 +1287,8 @@ function openMember(id){
         <div class="panel"><b>${graduated}</b><span>卒業メンバー</span></div>
       </div>
       <div class="panel about-notes">
-        <h3>Ver1.05の主な機能</h3>
-        <p>端末内メンバー画像、画像位置・拡大調整、クイック入力、イベント表、TOP設定メニュー、一括操作、統合フィルター、データ保護に対応しています。</p>
+        <h3>Ver1.06の主な機能</h3>
+        <p>端末内メンバー画像、表示範囲が分かる編集プレビュー、ドラッグ調整、クイック入力、イベント表、TOP設定メニュー、一括操作、統合フィルター、データ保護に対応しています。</p>
         <h3>保存について</h3>
         <p>登録内容はこのブラウザ内に保存されます。別端末へ移す場合は、バックアップ画面からJSONファイルを保存してください。</p>
       </div>`;
@@ -1586,9 +1632,11 @@ function openMember(id){
   $("closeSettingsSheetButton").onclick=()=>closeUtilitySheet("settingsSheetOverlay");
   $("closeImageAdjustSheetButton").onclick=closeImageAdjustSheet;
   $("cancelImageAdjustButton").onclick=closeImageAdjustSheet;
+  $("resetImageAdjustButton").onclick=resetImageAdjust;
   $("saveImageAdjustButton").onclick=saveImageAdjust;
   ["imagePositionX","imagePositionY","imageZoom"].forEach(id=>$(id).oninput=updateImageAdjustPreview);
   $("imageAdjustSheetOverlay").onclick=e=>{if(e.target===$("imageAdjustSheetOverlay"))closeImageAdjustSheet()};
+  setupImageAdjustDrag();
   $("settingsSheetOverlay").onclick=e=>{if(e.target===$("settingsSheetOverlay"))closeUtilitySheet("settingsSheetOverlay")};
   document.querySelectorAll("[data-settings-page]").forEach(button=>button.onclick=()=>{
     const page=button.dataset.settingsPage;
