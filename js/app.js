@@ -5,10 +5,10 @@ let APP_CONFIG = {};
 
 async function loadAppData() {
   const [eventsResponse, membersResponse, positionsResponse, configResponse] = await Promise.all([
-    fetch("./data/events.json?v=1.07",{cache:"no-store"}),
+    fetch("./data/events.json?v=1.08",{cache:"no-store"}),
     fetch("./data/members.json?v=1.0.0",{cache:"no-store"}),
     fetch("./data/positions.json?v=1.0.0-orderfix",{cache:"no-store"}),
-    fetch("./data/config.json?v=1.07",{cache:"no-store"})
+    fetch("./data/config.json?v=1.08",{cache:"no-store"})
   ]);
 
   if (!eventsResponse.ok || !membersResponse.ok || !positionsResponse.ok || !configResponse.ok) {
@@ -1320,7 +1320,7 @@ function openMember(id){
         <div class="panel"><b>${graduated}</b><span>卒業メンバー</span></div>
       </div>
       <div class="panel about-notes">
-        <h3>Ver1.07の主な機能</h3>
+        <h3>Ver1.08の主な機能</h3>
         <p>端末内メンバー画像、保存完了後の読み直し確認、表示範囲プレビュー、ドラッグ調整、クイック入力、イベント表、一括操作、統合フィルター、データ保護に対応しています。</p>
         <h3>保存について</h3>
         <p>登録内容はこのブラウザ内に保存されます。別端末へ移す場合は、バックアップ画面からJSONファイルを保存してください。</p>
